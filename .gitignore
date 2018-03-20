@@ -1,0 +1,8 @@
+*.pyc
+*~
+*.csv
+*.png
+*.sw*
+*.csv.gz
+*.png
+*.eps
