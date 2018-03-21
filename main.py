@@ -4,6 +4,7 @@ from __future__ import division
 
 import helpers
 from sim import Sim
+from dqn import DQN
 
 import sys
 import os
@@ -53,8 +54,8 @@ def main():
     
     # segregate data based on time
     #city = config['city'].iloc[0]
-    sim = Sim(len(geo_utils.lng_grids))
-
+    sim = Sim(len(geo_utils.lng_grids), time_utils)
+    
     for k in sorted(dropoff_buckets.keys()):
         if len(dropoff_buckets[k]) and (k+1) in pickup_buckets:
             #print "dropoff day %d, hour %d, dropoffs %d, pickups %d" % (
@@ -70,7 +71,9 @@ def main():
                 pickup_node, lat_idx, lon_idx = geo_utils.get_node(D[i, 2:4])
                 pickup_map[pickup_node] += 1
             sim.add_maps(k, dropoff_map, pickup_map)
-            print k, 'done adding maps'
+            logging.info("Loaded map for time bin %d" % k)
+            if k == 1000:
+                break
             
             """
             n, lat_idx, lng_idx = geo_utils.get_node(D[v[0], 2:4])
@@ -81,8 +84,21 @@ def main():
                 print a, n, geo_utils.get_centroid(n)
             """
     #print len(geo_utils.lng_grids)
-    #print sim.step(dropoff_node, 32, 0), dropoff_node
-    #print sim.step(pickup_node, 32, 3), pickup_node
+    """
+    print sim.step(dropoff_node, 32, -1), dropoff_node
+    print sim.step(dropoff_node, 32, 0), dropoff_node
+    print sim.step(dropoff_node, 32, 1), dropoff_node
+    print sim.step(dropoff_node, 32, 2), dropoff_node
+    print sim.step(dropoff_node, 32, 3), dropoff_node
+    print sim.step(pickup_node, 32, -1), pickup_node
+    print sim.step(pickup_node, 32, 0), pickup_node
+    print sim.step(pickup_node, 32, 1), pickup_node
+    print sim.step(pickup_node, 32, 2), pickup_node
+    print sim.step(pickup_node, 32, 3), pickup_node
+    """
+
+    alg = DQN(3, 5, 10, sim, len(dropoff_buckets), geo_utils)
+    alg.train()
 
 if __name__ == "__main__":
     main()

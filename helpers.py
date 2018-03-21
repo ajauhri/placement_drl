@@ -6,8 +6,9 @@ import logging
 class TimeUtilities:
     def __init__(self, time_bin_width_secs):
         self.time_bin_width_secs = time_bin_width_secs
-        self.hours_per_day = 24
         self.time_bin_bounds = []
+        self.n_time_bins_per_day = int((24*60*60) / time_bin_width_secs)
+        self.n_time_bins_per_hour = int((60*60) / time_bin_width_secs)
 
     def set_bounds(self, D):
         """
@@ -19,6 +20,9 @@ class TimeUtilities:
             int(np.max(D[:,0])) + bias, 
             self.time_bin_width_secs))
     
+    def get_hour_of_day(self, ts):
+        return int( (ts % self.n_time_bins_per_day) / self.n_time_bins_per_hour)
+
     def get_buckets(self, D, ind):
         time_bins = {}
         for i in range(len(self.time_bin_bounds) - 1):
