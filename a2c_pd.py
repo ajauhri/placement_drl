@@ -98,8 +98,9 @@ class A2C:
             cost = 0;
             iters = 0;
             num_time_steps = 50;
-#            curr_state = self.sim.get_state_rep(epoch)
-            num_cars = 5;
+
+# correctly request values for currpd
+#            curr_state = self.sim.get_state_rep(epoch) 
             curr_pd = pd.DataFrame({"car_ids":[1,2,3,4,5], "rewards":[0,0,1,0.8,0],
                                        "states":[[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5]]});
             all_pd = curr_pd.copy()
@@ -112,16 +113,15 @@ class A2C:
                     prob = abs(pi_t[j]) / sum(abs(pi_t[j]));
                     a_t.append(np.random.choice(self.action_dim,1,False,prob).tolist());
                     
-                curr_pd['steps'] = i;
-                curr_pd['policy'] = pi_t.tolist();
+                curr_pd['steps'] = i; 
+#                curr_pd['policy'] = pi_t.tolist();  # i don't think you need this...
                 curr_pd['actions'] = a_t;
-                curr_pd['terminal'] = np.random.randint(0,2,num_cars).tolist();
-#                next_state = self.sim.get_state_rep(epoch+1) 
-#                all_pd.append(curr_pd);
-                all_pd = curr_pd.copy();
+                curr_pd['terminal'] = np.random.randint(0,2,5).tolist(); # fix with correct implementation
+#                next_state = self.sim.get_state_rep(epoch+1) # get the values from env correctly
+#                all_pd.append(curr_pd); # will want this
+                all_pd = curr_pd.copy(); # comment this out / delete 
 
-                values = self.sess.run(self.critic_out_layer, feed_dict={self.critic_states: curr_state});
-#                curr_state = next_state;
+#                curr_state = next_state; #update state
             
                 car_ids = np.unique(curr_pd.car_ids.as_matrix()).tolist()
                 for car in car_ids:
@@ -142,32 +142,31 @@ class A2C:
                                              feed_dict={self.critic_states: states, 
                                                         self.critic_reward: discount})
                     
-            if ((epoch+1) % episodes_per_actor_update == 0):
-                print epoch
+            print epoch
                 
-                car_ids = np.unique(all_pd.car_ids.values).tolist();
-                for car in car_ids:
-                    if (all_pd[all_pd.car_ids == car].terminal == 1).any():
-                        car_pd = all_pd[all_pd.car_ids == car];
-                        rewards = car_pd.rewards.as_matrix();
-                        map = ~np.isnan(rewards);
-                        rewards = rewards[map].tolist();
-                        discount = [];
-                        steps = range(len(rewards));
-                        for j in steps:
-                            discount.append(rewards[j]);
-                            for k in steps[j+1:]:
-                                discount[j] += discount[k] * self.gamma**k;
-                        states = car_pd.states.as_matrix()[map].tolist();
-                        critic_value=self.sess.run(self.critic_out_layer,feed_dict={self.critic_states: states}).flatten()
-                        values = (discount - critic_value);
-                        actions = car_pd.actions.as_matrix()[map].tolist();
-                        one_hot_values = np.zeros([len(actions),self.action_dim]);
-                        for j in steps:
-                            one_hot_values[j,actions[j]] = values[j];
-                        _, c = self.sess.run([self.actor_train_op, self.actor_loss_op], 
-                                             feed_dict={self.actor_states: states, 
-                                                        self.actor_values: one_hot_values});
+            car_ids = np.unique(all_pd.car_ids.values).tolist();
+            for car in car_ids:
+                if (all_pd[all_pd.car_ids == car].terminal == 1).any():
+                    car_pd = all_pd[all_pd.car_ids == car];
+                    rewards = car_pd.rewards.as_matrix();
+                    map = ~np.isnan(rewards);
+                    rewards = rewards[map].tolist();
+                    discount = [];
+                    steps = range(len(rewards));
+                    for j in steps:
+                        discount.append(rewards[j]);
+                        for k in steps[j+1:]:
+                            discount[j] += discount[k] * self.gamma**k;
+                    states = car_pd.states.as_matrix()[map].tolist();
+                    critic_value=self.sess.run(self.critic_out_layer,feed_dict={self.critic_states: states}).flatten()
+                    values = (discount - critic_value);
+                    actions = car_pd.actions.as_matrix()[map].tolist();
+                    one_hot_values = np.zeros([len(actions),self.action_dim]);
+                    for j in steps:
+                        one_hot_values[j,actions[j]] = values[j];
+                    _, c = self.sess.run([self.actor_train_op, self.actor_loss_op], 
+                                         feed_dict={self.actor_states: states, 
+                                                    self.actor_values: one_hot_values});
 
 #            logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
 #                          (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
