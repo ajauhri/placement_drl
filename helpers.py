@@ -3,6 +3,20 @@ from __future__ import division
 import numpy as np
 import logging
 
+class rr:
+    def __init__(self, id, r_t, p_t, d_t, dn, dlat, dlng, pn, plat, plng):
+        self.id = id
+        self.r_t = r_t
+        self.p_t = p_t
+        self.d_t = d_t
+        self.dn = dn
+        self.dlat = dlat
+        self.dlng = dlng
+        self.pn = pn
+        self.plat = plat
+        self.plng = plat
+        self.picked = False
+
 class TimeUtilities:
     def __init__(self, time_bin_width_secs):
         self.time_bin_width_secs = time_bin_width_secs
@@ -17,11 +31,19 @@ class TimeUtilities:
         # to ensure the last upper bound is greater than the actual max. time
         bias = self.time_bin_width_secs
         self.time_bin_bounds = np.array(range(int(np.min(D[:,0])), 
-            int(np.max(D[:,0])) + bias, 
+            int(np.max(D[:, 0])) + bias, 
             self.time_bin_width_secs))
     
     def get_hour_of_day(self, ts):
         return int( (ts % self.n_time_bins_per_day) / self.n_time_bins_per_hour)
+    
+    def get_bucket(self, time):
+        for t in range(len(self.time_bin_bounds) - 1):
+            idx = np.where(np.logical_and(
+                time >= self.time_bin_bounds[t],
+                time < self.time_bin_bounds[t+1]))[0]
+            if len(idx):
+                return t
 
     def get_buckets(self, D, ind):
         time_bins = {}

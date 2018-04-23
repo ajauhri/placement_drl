@@ -2,17 +2,19 @@ from __future__ import division
 import numpy as np
 
 class Sim:
-    def __init__(self, n_lng_grids, time_utils, geo_utils, n_actions):
+    def __init__(self, n_lng_grids, time_utils, geo_utils, n_actions,
+            dropoff_buckets):
         self.pickup_maps = {}
-        self.dropoff_maps = {}
+        self.rrs = {}
         self.test_pickup_maps = {}
         self.test_dropoff_maps = {}
+        self.dropoff_buckets = dropoff_buckets
  
         self.n_lng_grids = n_lng_grids
         self.n_actions = n_actions
         self.time_utils = time_utils
         self.geo_utils = geo_utils
-
+        
     def get_random_node(self, ts):
         if ts in self.dropoff_maps:
             return np.random.choice(self.dropoff_maps[ts].keys())
@@ -34,30 +36,17 @@ class Sim:
     def get_state_rep(self, node, ts):
         th = self.time_utils.get_hour_of_day(ts)
         return self.geo_utils.get_centroid(node) + [th]
-
-    def add_maps(self, ts, dropoff_map, pickup_map, is_test=False):
+    
+    """ 
+    def add_maps(self, ts, pickup_map, is_test=False):
         if not is_test:
-            if ts in self.dropoff_maps:
-                self.dropoff_maps[ts] += dropoff_map
-            else:
-                self.dropoff_maps[ts] = dropoff_map
-            
-            if ts+1 in self.pickup_maps:
-                self.pickup_maps[ts+1] += pickup_map
-            else:
-                self.pickup_maps[ts+1] = pickup_map
+            self.pickup_maps[ts+1] = pickup_map
         
         elif is_test:
-            if ts in self.test_dropoff_maps:
-                self.test_dropoff_maps[ts] += dropoff_map
-            else:
-                self.test_dropoff_maps[ts] = dropoff_map
-            
-            if ts+1 in self.test_pickup_maps:
-                self.test_pickup_maps[ts+1] += pickup_map
-            else:
-                self.test_pickup_maps[ts+1] = pickup_map
-     
+            self.test_dropoff_maps[ts] = dropoff_map
+            self.test_pickup_maps[ts+1] = pickup_map
+    """ 
+
     def get_next_node(self, curr_node, a):
         lng_idx = int(curr_node % self.n_lng_grids)
         lat_idx = int(curr_node / self.n_lng_grids)
@@ -96,26 +85,106 @@ class Sim:
     
     def sample_action_space(self):
         return np.random.randint(self.n_actions)
-
-    def step(self, src, ts, a):
+    
+    def reset(self, t):
+        self.start_t = t
+        self.curr_t = t
+        th = self.time_utils.get_hour_of_day(t)
+        
+        states = []
+        nodes = []
+        for idx in self.dropoff_buckets[t]:
+            dropoff_node, d_lat_idx, d_lon_idx = \
+                    geo_utils.get_node(X[idx, 5:7])
+            centroid = self.geo_utils.get_centroid(dropoff_node) 
+            states.append(centroid + [th])
+            nodes.append(dropoff_node)
+        
+        self.curr_states = states
+        self.curr_nodes = nodes
+    
+    def step(self, a):
         """
         s: state depicting the centroid of the dropoff grid, hour of day
         a: left (0), down (1), right (2), up (3), NOP, (4)
         """
-        dst = self.get_next_node(src, a)
-        if self.dropoff_maps[ts][src] > 0 and \
-                self.pickup_maps[ts+1][dst] > 0:
-                    #TODO use a different reward; may be cumulative?
-                    return (dst, self.pickup_maps[ts+1][dst])
-        return (dst, 0)
-    
+        th = self.time_utils.get_hour_of_day(self.curr_t)
+        next_th = self.time_utils.get_hour_of_day(self.curr_t + 1)
+        next_nodes = []
+        next_states = []
+        rewards = []
+        
+        #1 check curr dropoffs which can be matched
+        for i in range(len(self.curr_states)):
+            r, next_node, next_centroid = self._in_rrs(self.curr_nodes[i], a)
+            rewards.append(r)
+            
+            if r == 0:
+                #next_dropoff_idxs.append(self.curr_idxs[i])
+                next_nodes.append(next_node)
+                next_centroid.append(next_centroid)
+            
+                next_states.append(next_centroid + [next_th])
+        
+        #2 check dropoffs from previous matched requets if can be matched further
+        if self.curr_t in self.matched_dropoffs:
+            for i in range(len(self.matched_dropoffs)):
+                r, next_node, next_centroid = self._in_rrs(self.curr_nodes[i], a)
+                rewards.append(r)
+                        
+                if r == 0:
+                    #next_dropoff_idxs.append(self.curr_idxs[i])
+                    next_nodes.append(next_node)
+                    next_states.append(next_centroid + [next_th])
+        
+        # dropoffs from before beginning of episode
+        if self.curr_t+1 in self.dropoff_buckets:
+            for idx in self.dropoff_buckets[self.curr_t+1]:
+                dropoff_node, d_lat_idx, d_lon_idx = \
+                        geo_utils.get_node(X[idx, 5:7])
 
-    def start_test(self):
-        self.test_steps = []
-    
-    def reset_test(self):
-        for i in self.test_steps:
-            self.test_pickup_maps[i[1]][i[0]] += 1
+                p_t = train_time_utils.get_bucket(X[idx, 1])
+                if p_t <= self.start_t:
+                    #next_nodes.append(dropoff_node)
+                    centroid = self.geo_utils.get_centroid(dropoff_node) 
+                    next_states.append(centroid + [next_th])
+        
+        self.curr_states = next_states
+        self.curr_t += 1
+
+     def _in_rrs(self, dropoff_node, a):
+        matched = False
+        placmt_node = self.get_next_node(dropoff_node, a)
+        placmt_centroid = self.geo_utils.get_centroid(placmt_node)
+        
+        if placmt_node in self.rrs:
+            for i in range(len(self.rrs[placmt_node])):
+                if (not self.rrs[placmt_node][i].picked) and
+                    ((self.rrs[placmt_node][i].r_t < (self.curr_t + 1) and 
+                        self.rrs[dist][i].p_t > (self.curr_t + 1))
+                     or
+                     self.rrs[placmt_node][i].r_t == self.curr_t + 1):
+                        self.rrs[placmt_node][i].picked = True
+                        
+                        pickup_t = self.rrs[placmt_node][i].p_t
+                        dropoff_t = self.rrs[placmt_node][i].d_t
+                        drive_t = dropoff_t - pickup_t
+                        self.rrs[placmt_node][i].p_t = self.curr_t
+                        
+                        new_dropoff_t = curr_t + drive_t
+                        if new_dropoff_t <= self.end_t:
+                            if new_dropoff_t not in self.matched_dropoffs:
+                                self.matched_dropoffs = []
+                            self.matched_dropoffs[new_dropoff_t].append(
+                                    self.rrs[placmt_node][i].dn)
+                        
+                        matched = True
+                        r = self.gamma ** ((self.curr_t + 1) - \
+                                self.rrs[placmt_node][i].r_t)
+                        return r, plcmt_node, placmt_centroid
+        if not matched:
+            return 0, plcmt_node, placmt_centroid
+
 
     def step_test(self, src, ts, a):
         """
