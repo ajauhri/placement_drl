@@ -6,6 +6,7 @@ from __future__ import division
 import helpers
 from sim import Sim
 from dqn import DQN
+from a2c_pd import A2C
 
 import sys
 import os
@@ -67,7 +68,6 @@ def main():
     test_dropoff_buckets = test_time_utils.get_buckets(Y, 4)
     logging.info("Loaded test %d data points", len(Y))
     """
-
     
     # segregate data based on time
     #city = config['city'].iloc[0]
@@ -92,10 +92,19 @@ def main():
                     dropoff_node, d_lat_idx, d_lon_idx, 
                     pickup_node, p_lat_idx, p_lon_idx))
             
-            #sim.add_maps(k, dropoff_map, pickup_map)
-            sim.add_rrs(k+1, rrs)
             logging.info("Loaded map for time bin %d, hour of day %d" % (k, 
                 train_time_utils.get_hour_of_day(k)))
+    """ 
+    state_dim = 5;
+    action_dim = 4;
+    hidden_units = 30;
+    sim = 1;
+    n_time_bins = 100
+    model = A2C(state_dim, action_dim, hidden_units, sim, n_time_bins);
+    model.train();
+    """
+
+
     """
     for k in sorted(test_dropoff_buckets.keys())[:61]:
         if len(test_dropoff_buckets[k]) and (k+1) in test_pickup_buckets:

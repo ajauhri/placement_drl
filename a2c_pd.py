@@ -152,7 +152,7 @@ class A2C:
                                              feed_dict={self.critic_states: states, 
                                                         self.critic_reward: discount})
                     
-            print epoch
+            print(epoch)
                 
             car_ids = np.unique(all_pd.car_ids.values).tolist();
             for car in car_ids:
@@ -218,18 +218,3 @@ class A2C:
                 % (tot_r, n_dropoffs))
         self.sim.reset_test()
         return tot_r
-
-
-def main():
-
-    state_dim = 5;
-    action_dim = 4;
-    hidden_units = 30;
-    sim = 1;
-    n_time_bins = 100
-    dqn = A2C(state_dim, action_dim, hidden_units, sim, n_time_bins);
-    dqn.train();
-
-
-if __name__ == "__main__":
-    main();
