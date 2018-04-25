@@ -5,77 +5,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 class A2C:
-    def setup_actor(self):
-        self.actor_weights = {
-            'h1': tf.Variable(tf.random_normal([self.state_dim, 
-                self.hidden_units])),
-            'h2': tf.Variable(tf.random_normal([self.hidden_units, 
-                self.hidden_units])),
-            'h3': tf.Variable(tf.random_normal([self.hidden_units, 
-                self.hidden_units])),
-            'out': tf.Variable(tf.random_normal([self.hidden_units, 
-                self.action_dim]))
-            }
-
-        self.actor_biases = {
-            'b1': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
-            'b2': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
-            'b3': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
-            'out': tf.Variable(tf.constant(0.0, shape=[self.action_dim]))
-            }
-
-        self.actor_states = tf.placeholder("float", [None, self.state_dim])
-        self.actor_values = tf.placeholder("float", [None, self.action_dim])
-        actor_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_states, 
-            self.actor_weights['h1']), self.actor_biases['b1']))
-        actor_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_l1, 
-            self.actor_weights['h2']), self.actor_biases['b2']))
-        actor_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_l2, 
-            self.actor_weights['h3']), self.actor_biases['b3']))
-        self.actor_out_layer = tf.matmul(actor_l3, self.actor_weights['out']) \
-                + self.actor_biases['out']
-        self.actor_loss_op = tf.reduce_mean(tf.multiply(self.actor_values, 
-            tf.log(self.actor_out_layer)))
-        self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
-        self.actor_train_op = self.actor_optimizer.minimize(self.actor_loss_op)
-
-
-    def setup_critic(self):
-        self.critic_weights = {
-            'h1': tf.Variable(tf.random_normal([self.state_dim, 
-                self.hidden_units])),
-            'h2': tf.Variable(tf.random_normal([self.hidden_units, 
-                self.hidden_units])),
-            'h3': tf.Variable(tf.random_normal([self.hidden_units,
-                self.hidden_units])),
-            'out': tf.Variable(tf.random_normal([self.hidden_units, 1]))
-            }
-        
-        self.critic_biases = {
-            'b1': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
-            'b2': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
-            'b3': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
-            'out': tf.Variable(tf.constant(0.0, shape=[1]))
-            }
-        
-        self.critic_states = tf.placeholder("float", [None, self.state_dim])
-        self.critic_reward = tf.placeholder("float", [None])
-        critic_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.critic_states, 
-            self.critic_weights['h1']), self.critic_biases['b1']))
-        critic_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l1, 
-            self.critic_weights['h2']), self.critic_biases['b2']))
-        critic_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l2, 
-            self.critic_weights['h3']), self.critic_biases['b3']))
-        self.critic_out_layer = tf.matmul(critic_l3, 
-                self.critic_weights['out']) + self.critic_biases['out']
-        self.critic_loss_op = tf.reduce_mean(tf.square(\
-                tf.subtract(self.critic_reward,self.critic_out_layer)));
-        self.critic_optimizer = tf.train.AdamOptimizer(self.critic_alpha)
-        self.critic_train_op = self.critic_optimizer.\
-                minimize(self.critic_loss_op)
-
-
-    def __init__(self, state_dim, action_dim, hidden_units, sim, n_time_bins):
+    def __init__(self, sim, n_time_bins, state_dim=3, 
+            action_dim=5, hidden_units=16):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.hidden_units = hidden_units
@@ -86,18 +17,108 @@ class A2C:
         self.gamma = 0.99
         self.epsilon = 0.5
 
-        num_mins_per_bin = 2;
-        num_bins_in_hour = 60 / num_mins_per_bin;
-        num_hours_per_day = 24;
-        self.data_for_day = num_bins_in_hour * num_hours_per_day;
+        num_mins_per_bin = 2
+        num_bins_in_hour = 60 / num_mins_per_bin
+        num_hours_per_day = 24
+        self.data_for_day = num_bins_in_hour * num_hours_per_day
 
-        self.setup_actor();
-        self.setup_critic();
+        self.setup_actor_critic()
+        #init = tf.global_variables_initializer()
+        #self.sess = tf.Session()
+        #self.sess.run(init)
+
+    def setup_actor_critic(self):
+        with tf.Graph().as_default() as actor:
+            actor_weights = {
+                'h1': tf.Variable(tf.random_normal([self.state_dim, 
+                    self.hidden_units])),
+                'h2': tf.Variable(tf.random_normal([self.hidden_units, 
+                    self.hidden_units])),
+                'h3': tf.Variable(tf.random_normal([self.hidden_units, 
+                    self.hidden_units])),
+                'out': tf.Variable(tf.random_normal([self.hidden_units, 
+                    self.action_dim]))
+                }
+
+            actor_biases = {
+                'b1': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
+                'b2': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
+                'b3': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
+                'out': tf.Variable(tf.constant(0.0, shape=[self.action_dim]))
+                }
+
+            actor_states = tf.placeholder("float", [None, self.state_dim])
+            values = tf.placeholder("float", [None, self.action_dim])
+
+            actor_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_states, 
+                actor_weights['h1']), actor_biases['b1']))
+            actor_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_l1, 
+                actor_weights['h2']), actor_biases['b2']))
+            actor_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_l2, 
+                actor_weights['h3']), actor_biases['b3']))
+            actor_out_layer = tf.nn.softmax(tf.nn.bias_add(\
+                    tf.matmul(actor_l3, actor_weights['out']), 
+                    actor_biases['out']))
+
+            actor_loss_op = tf.reduce_mean(actor_out_layer)
+            actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
+            actor_train_op = actor_optimizer.minimize(\
+                    actor_loss_op)
+            init = tf.global_variables_initializer()
         
-        init = tf.global_variables_initializer()
-        self.sess = tf.Session()
-        self.sess.run(init)
-   
+        self.actor_sess = tf.Session(graph=actor)
+        self.actor_sess.run(init)
+
+
+        with tf.Graph().as_default() as critic:
+            critic_weights = {
+                'h1': tf.Variable(tf.random_normal([self.state_dim, 
+                    self.hidden_units])),
+                'h2': tf.Variable(tf.random_normal([self.hidden_units, 
+                    self.hidden_units])),
+                'h3': tf.Variable(tf.random_normal([self.hidden_units,
+                    self.hidden_units])),
+                'out': tf.Variable(tf.random_normal([self.hidden_units, 1]))
+                }
+            
+            critic_biases = {
+                'b1': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
+                'b2': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
+                'b3': tf.Variable(tf.constant(0.0, shape=[self.hidden_units])),
+                'out': tf.Variable(tf.constant(0.0, shape=[1]))
+                }
+            
+            critic_states = tf.placeholder("float", [None, self.state_dim])
+            critic_value = tf.placeholder("float", [None])
+           
+            critic_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_states, 
+                critic_weights['h1']), critic_biases['b1']))
+            critic_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l1, 
+                critic_weights['h2']), critic_biases['b2']))
+            critic_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l2, 
+                critic_weights['h3']), critic_biases['b3']))
+            critic_out_layer = tf.matmul(critic_l3, 
+                    critic_weights['out']) + critic_biases['out']
+            
+            critic_loss_op = tf.reduce_mean(tf.square(\
+                    tf.subtract(critic_value, critic_out_layer)));
+            critic_optimizer = tf.train.AdamOptimizer(self.critic_alpha)
+            critic_train_op = critic_optimizer.\
+                    minimize(critic_loss_op)
+            init = tf.global_variables_initializer()
+
+        self.critic_sess = tf.Session(graph=critic)
+        self.critic_sess.run(init)
+        
+        """
+        a = self.actor_sess.run(actor_out_layer,
+                        feed_dict={actor_states: [[4, 5, 4]]})
+        c = self.critic_sess.run(critic_out_layer,
+                        feed_dict={critic_states: [[4, 5, 4]]})
+        print(a, np.sum(a))
+        print(c)
+        """
+
     def train(self):
         costs = [];
         rewards = [];

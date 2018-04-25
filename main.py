@@ -40,6 +40,9 @@ def main():
     logging.basicConfig(format='%(asctime)s main: %(message)s', 
             level=args.loglevel)
     
+    model = A2C(0, 10);
+    sys.exit(0)
+
     config = pandas.read_csv(args.config, sep=',')
     X = pandas.read_csv(args.input, sep=',', 
             header=None).values.astype(np.float64)
@@ -71,7 +74,8 @@ def main():
     
     # segregate data based on time
     #city = config['city'].iloc[0]
-    sim = Sim(len(geo_utils.lng_grids), train_time_utils, geo_utils, action_dim,
+    sim = Sim(len(geo_utils.lng_grids), train_time_utils, geo_utils, 
+            action_dim, 
             train_dropoff_buckets)
     for k in sorted(train_dropoff_buckets.keys())[:720]:
         if len(train_dropoff_buckets[k]) and (k+1) in train_pickup_buckets:
