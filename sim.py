@@ -80,8 +80,8 @@ class Sim:
         self.pmr_states = {}
         self.pmr_ids = {}
         self.start_t = t
-        self.curr_t = t
         self.end_t = t + self.episode_duration
+        self.curr_t = t
         th = self.time_utils.get_hour_of_day(t)
         self.car_id_counter = 0
         
@@ -141,7 +141,7 @@ class Sim:
                     next_states.append(next_centroid + [next_th])
                     next_ids.append(self.pmr_ids[self.curr_t][i])
         
-        #3 dropoffs from before beginning of episode
+        #3 add dropoff vehicles from before beginning of episode
         if self.curr_t+1 in self.dropoff_buckets:
             for idx in self.dropoff_buckets[self.curr_t+1]:
                 dropoff_node, d_lat_idx, d_lon_idx = \
@@ -149,11 +149,11 @@ class Sim:
 
                 p_t = self.time_utils.get_bucket(self.X[idx, 1])
                 if p_t <= self.start_t:
-                    #next_nodes.append(dropoff_node)
-                    next_ids.append(self.car_id_counter)
                     self.car_id_counter += 1
                     centroid = self.geo_utils.get_centroid(dropoff_node)
+                    next_nodes.append(dropoff_node)
                     next_states.append(centroid + [next_th])
+                    next_ids.append(self.car_id_counter)
         
         self.curr_states = next_states
         self.curr_ids = next_ids
@@ -169,8 +169,9 @@ class Sim:
         
         if placmt_node in self.rrs:
             for i in range(len(self.rrs[placmt_node])):
-                if (not self.rrs[placmt_node][i].picked) and \
-                    ((self.rrs[placmt_node][i].r_t < (self.curr_t + 1) and 
+                if (not self.rrs[placmt_node][i].picked) and (\
+                        (self.rrs[placmt_node][i].r_t < (self.curr_t + 1) and 
+                        self.rrs[placmt_node][i].r_t > (self.start_t - 20) and
                         self.rrs[placmt_node][i].p_t > (self.curr_t + 1))
                      or
                      self.rrs[placmt_node][i].r_t == self.curr_t + 1):

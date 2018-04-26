@@ -132,27 +132,33 @@ class A2C:
             #                           "states":[[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5]]});
             #all_pd = curr_pd.copy()
 
-            for i in range(self.sim.episode_duration):
-                pi_t = self.actor_sess.run(self.actor_out_layer,
+            for t in range(self.sim.start_t, self.sim.end_t):
+                p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
 
                 a_t = []
-                for j in range(len(pi_t)):
-                    a = np.random.choice(self.action_dim, 1, p=pi_t[j])[0]
+                for j in range(len(p_t)):
+                    a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
                     a_t.append(a)
                 
                 # previously (p) matched (m) rides (r) actions
                 pmr_a_t = []
-                if start_t in self.sim.pmr_states:
-                    pi_t = self.actor_sess.run(self.actor_out_layer, 
-                            feed_dict={self.actor_states: self.sim.pmr_states})
+                pmr_rides = 0
+                if t in self.sim.pmr_states:
+                    pmr_rides = len(self.sim.pmr_states[t])
+                    pmr_t = self.actor_sess.run(self.actor_out_layer, 
+                            feed_dict={\
+                                    self.actor_states: self.sim.pmr_states[t]})
                     
-                    for j in range(len(pi_t)):
-                        a = np.random.choice(self.action_dim, 1, p=pi_t[j])[0]
+                    for j in range(len(pmr_t)):
+                        a = np.random.choice(self.action_dim, 1, p=pmr_t[j])[0]
                         pmr_a_t.append(a)
-
+                prev_states = self.sim.curr_states
+                prev_ids = self.sim.curr_ids
                 rewards = self.sim.step(a_t, pmr_a_t)
-                break
+                assert (len(prev_states) + pmr_rides) == len(rewards)  
+                assert (len(prev_ids) + pmr_rides) == len(rewards)  
+                print('iter %d' % t)
             break
             """
 #                curr_pd['policy'] = pi_t.tolist();  # i don't think you need this...
