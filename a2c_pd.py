@@ -23,9 +23,6 @@ class A2C:
         self.data_for_day = num_bins_in_hour * num_hours_per_day
 
         self.setup_actor_critic()
-        #init = tf.global_variables_initializer()
-        #self.sess = tf.Session()
-        #self.sess.run(init)
 
     def setup_actor_critic(self):
         with tf.Graph().as_default() as actor:
@@ -47,28 +44,27 @@ class A2C:
                 'out': tf.Variable(tf.constant(0.0, shape=[self.action_dim]))
                 }
 
-            actor_states = tf.placeholder("float", [None, self.state_dim])
-            values = tf.placeholder("float", [None, self.action_dim])
+            self.actor_states = tf.placeholder("float", [None, self.state_dim])
+            self.actor_values = tf.placeholder("float", [None, self.action_dim])
 
-            actor_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_states, 
+            actor_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_states, 
                 actor_weights['h1']), actor_biases['b1']))
             actor_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_l1, 
                 actor_weights['h2']), actor_biases['b2']))
             actor_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_l2, 
                 actor_weights['h3']), actor_biases['b3']))
-            actor_out_layer = tf.nn.softmax(tf.nn.bias_add(\
+            self.actor_out_layer = tf.nn.softmax(tf.nn.bias_add(\
                     tf.matmul(actor_l3, actor_weights['out']), 
                     actor_biases['out']))
 
-            actor_loss_op = tf.reduce_mean(actor_out_layer)
-            actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
-            actor_train_op = actor_optimizer.minimize(\
-                    actor_loss_op)
+            self.actor_loss_op = tf.reduce_mean(self.actor_out_layer)
+            self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
+            self.actor_train_op = self.actor_optimizer.minimize(\
+                    self.actor_loss_op)
             init = tf.global_variables_initializer()
         
         self.actor_sess = tf.Session(graph=actor)
         self.actor_sess.run(init)
-
 
         with tf.Graph().as_default() as critic:
             critic_weights = {
@@ -88,23 +84,23 @@ class A2C:
                 'out': tf.Variable(tf.constant(0.0, shape=[1]))
                 }
             
-            critic_states = tf.placeholder("float", [None, self.state_dim])
-            critic_value = tf.placeholder("float", [None])
+            self.critic_states = tf.placeholder("float", [None, self.state_dim])
+            self.critic_value = tf.placeholder("float", [None])
            
-            critic_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_states, 
+            critic_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.critic_states, 
                 critic_weights['h1']), critic_biases['b1']))
             critic_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l1, 
                 critic_weights['h2']), critic_biases['b2']))
             critic_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l2, 
                 critic_weights['h3']), critic_biases['b3']))
-            critic_out_layer = tf.matmul(critic_l3, 
+            self.critic_out_layer = tf.matmul(critic_l3, 
                     critic_weights['out']) + critic_biases['out']
             
-            critic_loss_op = tf.reduce_mean(tf.square(\
-                    tf.subtract(critic_value, critic_out_layer)));
-            critic_optimizer = tf.train.AdamOptimizer(self.critic_alpha)
-            critic_train_op = critic_optimizer.\
-                    minimize(critic_loss_op)
+            self.critic_loss_op = tf.reduce_mean(tf.square(\
+                    tf.subtract(self.critic_value, self.critic_out_layer)));
+            self.critic_optimizer = tf.train.AdamOptimizer(self.critic_alpha)
+            self.critic_train_op = self.critic_optimizer.\
+                    minimize(self.critic_loss_op)
             init = tf.global_variables_initializer()
 
         self.critic_sess = tf.Session(graph=critic)
@@ -118,7 +114,7 @@ class A2C:
         print(a, np.sum(a))
         print(c)
         """
-
+    
     def train(self):
         costs = [];
         rewards = [];
@@ -128,29 +124,42 @@ class A2C:
             N = 5;
             cost = 0;
             iters = 0;
-            num_time_steps = 50;
+            
+            start_t = 6
+            self.sim.reset(start_t)
 
-# correctly request values for currpd
-#            curr_state = self.sim.get_state_rep(epoch) 
-            curr_pd = pd.DataFrame({"car_ids":[1,2,3,4,5], "rewards":[0,0,1,0.8,0],
-                                       "states":[[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5]]});
-            all_pd = curr_pd.copy()
-            for i in range(num_time_steps):
-                curr_state = curr_pd.states.as_matrix().tolist();
-                pi_t = self.sess.run(self.actor_out_layer,
-                        feed_dict={self.actor_states: curr_state});
-                a_t = [];
+            #curr_pd = pd.DataFrame({"car_ids":[1,2,3,4,5], "rewards":[0,0,1,0.8,0],
+            #                           "states":[[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5]]});
+            #all_pd = curr_pd.copy()
+
+            for i in range(self.sim.episode_duration):
+                pi_t = self.actor_sess.run(self.actor_out_layer,
+                        feed_dict={self.actor_states: self.sim.curr_states})
+
+                a_t = []
                 for j in range(len(pi_t)):
-                    prob = abs(pi_t[j]) / sum(abs(pi_t[j]));
-                    a_t.append(np.random.choice(self.action_dim,1,False,prob).tolist());
+                    a = np.random.choice(self.action_dim, 1, p=pi_t[j])[0]
+                    a_t.append(a)
+                
+                # previously (p) matched (m) rides (r) actions
+                pmr_a_t = []
+                if start_t in self.sim.pmr_states:
+                    pi_t = self.actor_sess.run(self.actor_out_layer, 
+                            feed_dict={self.actor_states: self.sim.pmr_states})
                     
-                curr_pd['steps'] = i; 
+                    for j in range(len(pi_t)):
+                        a = np.random.choice(self.action_dim, 1, p=pi_t[j])[0]
+                        pmr_a_t.append(a)
+
+                rewards = self.sim.step(a_t, pmr_a_t)
+                break
+            break
+            """
 #                curr_pd['policy'] = pi_t.tolist();  # i don't think you need this...
                 curr_pd['actions'] = a_t;
                 curr_pd['terminal'] = np.random.randint(0,2,5).tolist(); # fix with correct implementation
 #                next_state = self.sim.get_state_rep(epoch+1) # get the values from env correctly
 #                all_pd.append(curr_pd); # will want this
-                all_pd = curr_pd.copy(); # comment this out / delete 
 
 #                curr_state = next_state; #update state
             
@@ -213,7 +222,7 @@ class A2C:
         ax2.plot(rewards, 'b--', linewidth=1)
         plt.ylabel('reward')
         plt.show()
-
+        """
 
     def test(self):
         self.sim.start_test()

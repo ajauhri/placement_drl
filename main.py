@@ -16,7 +16,7 @@ import logging
 import numpy as np
 from collections import Counter 
 
-time_bin_width_mins = 2
+time_bin_width_mins = 3
 cell_length_meters = 100
 time_bin_width_secs = time_bin_width_mins * 60
 action_dim = 5 # 0 - left, 1 - down, 2 - right, 3 - up, 4 - NOP
@@ -40,9 +40,7 @@ def main():
     logging.basicConfig(format='%(asctime)s main: %(message)s', 
             level=args.loglevel)
     
-    model = A2C(0, 10);
-    sys.exit(0)
-
+    
     config = pandas.read_csv(args.config, sep=',')
     X = pandas.read_csv(args.input, sep=',', 
             header=None).values.astype(np.float64)
@@ -74,10 +72,10 @@ def main():
     
     # segregate data based on time
     #city = config['city'].iloc[0]
-    sim = Sim(len(geo_utils.lng_grids), train_time_utils, geo_utils, 
+    sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
             train_dropoff_buckets)
-    for k in sorted(train_dropoff_buckets.keys())[:720]:
+    for k in sorted(train_dropoff_buckets.keys())[:10]:
         if len(train_dropoff_buckets[k]) and (k+1) in train_pickup_buckets:
             rrs = {}
             
@@ -98,6 +96,12 @@ def main():
             
             logging.info("Loaded map for time bin %d, hour of day %d" % (k, 
                 train_time_utils.get_hour_of_day(k)))
+
+
+    model = A2C(sim, 10);
+    model.train()
+    sys.exit(0)
+
     """ 
     state_dim = 5;
     action_dim = 4;
