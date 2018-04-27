@@ -3,7 +3,7 @@ import numpy as np
 
 class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
-            dropoff_buckets, episode_duration=30, gamma=0.9):
+            dropoff_buckets, episode_duration=20, gamma=0.9):
         self.X = X
         self.rrs = {}
         self.dropoff_buckets = dropoff_buckets
@@ -183,7 +183,7 @@ class Sim:
                         self.rrs[placmt_node][i].p_t = self.curr_t + 1
                         
                         new_dropoff_t = (self.curr_t + 1) + drive_t
-                        if new_dropoff_t <= self.end_t:
+                        if new_dropoff_t < self.end_t:
                             if new_dropoff_t not in self.pmr_dropoffs:
                                 self.pmr_dropoffs[new_dropoff_t] = []
                                 self.pmr_states[new_dropoff_t] = []

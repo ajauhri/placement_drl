@@ -16,6 +16,7 @@ class A2C:
         self.critic_alpha = 0.0001
         self.gamma = 0.99
         self.epsilon = 0.5
+        self.n = 5
 
         num_mins_per_bin = 2
         num_bins_in_hour = 60 / num_mins_per_bin
@@ -114,24 +115,27 @@ class A2C:
         print(a, np.sum(a))
         print(c)
         """
-    
+    def _aggregate(self, trajs, rewards, actions, states_t, r_t, a_t, ids_t):
+        for i in range(len(states_t)):
+            if ids_t[i] not in trajs:
+                trajs[ids_t[i]] = []
+                rewards[ids_t[i]] = []
+                actions[ids_t[i]] = []
+            trajs[ids_t[i]].append(states_t[i])
+            rewards[ids_t[i]].append(r_t[i])
+            actions[ids_t[i]].append(a_t[i])
+
     def train(self):
-        costs = [];
-        rewards = [];
-        episodes_per_actor_update = 10;
-        max_epochs = 100;
+        max_epochs = 100
         for epoch in range(max_epochs):
-            N = 5;
-            cost = 0;
-            iters = 0;
-            
             start_t = 6
             self.sim.reset(start_t)
 
-            #curr_pd = pd.DataFrame({"car_ids":[1,2,3,4,5], "rewards":[0,0,1,0.8,0],
-            #                           "states":[[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5]]});
-            #all_pd = curr_pd.copy()
-
+            trajs = {}
+            rewards = {}
+            actions = {}
+            
+            #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t):
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
@@ -141,9 +145,8 @@ class A2C:
                     a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
                     a_t.append(a)
                 
-                # previously (p) matched (m) rides (r) actions
+                # obtain actions for previously (p) matched (m) rides (r) 
                 pmr_a_t = []
-                pmr_rides = 0
                 if t in self.sim.pmr_states:
                     pmr_rides = len(self.sim.pmr_states[t])
                     pmr_t = self.actor_sess.run(self.actor_out_layer, 
@@ -153,14 +156,64 @@ class A2C:
                     for j in range(len(pmr_t)):
                         a = np.random.choice(self.action_dim, 1, p=pmr_t[j])[0]
                         pmr_a_t.append(a)
-                prev_states = self.sim.curr_states
-                prev_ids = self.sim.curr_ids
-                rewards = self.sim.step(a_t, pmr_a_t)
-                assert (len(prev_states) + pmr_rides) == len(rewards)  
-                assert (len(prev_ids) + pmr_rides) == len(rewards)  
+
+                states_t = self.sim.curr_states
+                ids_t = self.sim.curr_ids
+
+                # step in the enviornment
+                r_t = self.sim.step(a_t, pmr_a_t)
+
+                # len of r_t should equal to current states (states_t) and 
+                # states obtained from pmr
+                assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
+                assert (len(ids_t) + len(pmr_a_t)) == len(r_t)  
+                
                 print('iter %d' % t)
+                
+                self._aggregate(trajs, rewards, actions, states_t, 
+                        r_t, a_t, ids_t)
+
+                if t in self.sim.pmr_ids:
+                    self._aggregate(trajs, rewards, actions, 
+                            self.sim.pmr_states[t],
+                            r_t,
+                            pmr_a_t,
+                            self.sim.pmr_ids[t])
+            #end of an episode run and results aggregated
+            
+            for car_id, r in rewards.items():
+                r = np.array(r)
+                nz = np.where(r != 0)[0] 
+                V_omega = self.critic_sess.run(self.critic_out_layer, 
+                            feed_dict={self.critic_states: trajs[car_id]})
+                
+                prev_succ = 0
+                # iterate for all successful pickups
+                for succ in nz:
+                    T = succ - prev_succ + 1
+                    R = [0]*T
+                    for ts in reversed(range(T)):
+                        ts += prev_succ
+                        if self.n + ts >= T:
+                            v_end = 0
+                        else:
+                            v_end = V_omega[ts + self.n]
+
+                        cum_sum = 0
+                        for k in range(0, self.n):
+                            if ts+k < T:
+                                cum_sum += r[ts+k] * (self.gamma**k)
+                            else:
+                                break
+                        R[ts] = cum_sum + v_end * (self.gamma**self.n) 
+                      
+                    prev_s = succ
+                #print(r, end=" ")
+                print(' done')
             break
             """
+            
+                #print(k,v, len(v), v[np.where(v!=0)[0]])
 #                curr_pd['policy'] = pi_t.tolist();  # i don't think you need this...
                 curr_pd['actions'] = a_t;
                 curr_pd['terminal'] = np.random.randint(0,2,5).tolist(); # fix with correct implementation
