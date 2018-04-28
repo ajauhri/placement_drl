@@ -180,6 +180,7 @@ class A2C:
                             pmr_a_t,
                             self.sim.pmr_ids[t])
             #end of an episode run and results aggregated
+           
             
             for car_id, r in rewards.items():
                 r = np.array(r)
@@ -207,9 +208,10 @@ class A2C:
                                 break
                         R[ts] = cum_sum + v_end * (self.gamma**self.n) 
                       
-                    prev_s = succ
+                    prev_succ = succ
                 #print(r, end=" ")
                 print(' done')
+                # train critic
             break
             """
             
