@@ -112,7 +112,7 @@ class Sim:
             
             if r == 0:
                 next_nodes.append(next_node)
-                next_nodes.append(self.get_state(next_node, next_th))
+                next_states.append(self.get_state(next_node, next_th))
                 #next_states.append(next_centroid + [next_th])
                 next_ids.append(self.curr_ids[i])
         
@@ -159,7 +159,6 @@ class Sim:
     def _in_rrs(self, dropoff_node, a, car_id, next_th):
         matched = False
         placmt_node = self.get_next_node(dropoff_node, a)
-        print(dropoff_node, a, placmt_node)
         #placmt_centroid = self.geo_utils.get_centroid(placmt_node)
         
         if placmt_node in self.requests:

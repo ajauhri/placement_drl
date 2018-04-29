@@ -111,7 +111,7 @@ def main():
 
 
     model = A2C(sim, 10, 
-            len(geo_utils.lat_grids) * len(geo_utils.lng_grids))
+            len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1)
 
 
     model.train()

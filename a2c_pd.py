@@ -141,7 +141,7 @@ class A2C:
             rewards = {}
             actions = {}
             times = {}
-
+            """
             fig = plt.figure(1)
             plt.ion();
             m = Basemap(projection = 'stere', 
@@ -155,6 +155,7 @@ class A2C:
             plt.xlabel('lon')
             plt.ylabel('lat')
             plt.show()
+            """
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t):
@@ -189,11 +190,11 @@ class A2C:
                     lat[i] = state[0];
                     lon[i] = state[1];
                     i += 1;
-                loc = m(lon,lat)
-                plot_points = plt.scatter(loc[0],loc[1],1,color='r',zorder=2)
-                plt.draw();
-                plt.pause(0.001);
-                plot_points.remove();
+                #loc = m(lon,lat)
+                #plot_points = plt.scatter(loc[0],loc[1],1,color='r',zorder=2)
+                #plt.draw();
+                #plt.pause(0.001);
+                #plot_points.remove();
 
 
                 # step in the enviornment
@@ -220,8 +221,8 @@ class A2C:
            
             
             for car_id, r in rewards.items():
-                V_omega = self.critic_sess.run(self.critic_out_layer, 
-                               feed_dict={self.critic_states: trajs[car_id]}).flatten();
+                V_omega = self.critic_sess.run(self.critic_out_layer,
+                        feed_dict={self.critic_states: trajs[car_id]}).flatten()
                 
                 t_s = times[car_id];
                 R = [0]*len(r);
@@ -240,15 +241,16 @@ class A2C:
 #                    if (cum_td[-1] < self.n):
                         # train on next drop off location
                 
-                _, c = self.critic_sess.run([self.critic_train_op, self.critic_loss_op], 
-                                     feed_dict={self.critic_states: trajs[car_id], 
-                                                self.critic_values: R})
+                _, c = self.critic_sess.run([self.critic_train_op,
+                    self.critic_loss_op], 
+                    feed_dict={self.critic_states: trajs[car_id], 
+                        self.critic_values: R})
 
             temp_c = [];
             temp_r = [];
             for car_id,r in rewards.items():
-                V_omega = self.critic_sess.run(self.critic_out_layer, 
-                               feed_dict={self.critic_states: trajs[car_id]}).flatten();
+                V_omega = self.critic_sess.run(self.critic_out_layer,
+                        feed_dict={self.critic_states: trajs[car_id]}).flatten()
 
                 t_s = times[car_id];
                 R = [0]*len(r)
@@ -268,25 +270,28 @@ class A2C:
                 values = (R - V_omega);
                 a_s = actions[car_id];
                 one_hot_values = np.zeros([len(a_s),self.action_dim]);
+                
                 for j in range(len(a_s)):
                     one_hot_values[j,a_s[j]] = values[j];
 
-                prob_out = self.actor_sess.run(self.actor_out_layer,
-                                               feed_dict={self.actor_states: trajs[car_id]})
-                _, c = self.actor_sess.run([self.actor_train_op, self.actor_loss_op], 
-                                           feed_dict={self.actor_states: trajs[car_id], 
-                                                      self.actor_values: one_hot_values});
+                prob_out = self.actor_sess.run(self.actor_out_layer, 
+                        feed_dict={self.actor_states: trajs[car_id]})
+
+                _, c = self.actor_sess.run([self.actor_train_op,
+                    self.actor_loss_op],
+                    feed_dict={self.actor_states: trajs[car_id], 
+                    self.actor_values: one_hot_values});
                 temp_c.append(c);
                 temp_r.append(np.sum(r));
 
             print("reward " + str(np.sum(temp_r)))
             print("cost " + str(np.mean(temp_c)))
 
-#            logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
-#                          (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
+#           logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
+#           (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
             costs.append(np.mean(temp_c))
             rewards_test.append(np.sum(temp_r));
-#            rewards_test.append(self.test())
+#           rewards_test.append(self.test())
 
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
