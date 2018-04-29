@@ -5,6 +5,17 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from matplotlib.animation import FuncAnimation
 
+def update_animation(frame,imaging_data,plot_points):
+    old_points = plot_points;
+    old_points.set_color('blue');
+    loc = imaging_data[frame][0];
+    num_each = imaging_data[frame][1];
+    plot_points = plt.scatter(loc[0],loc[1],num_each,color='r',zorder=4);
+    plt.draw();
+    plt.pause(0.001);
+    old_points.remove();
+    return plot_points
+
 class A2C:
     def __init__(self, sim, n_time_bins, state_dim=3, 
             action_dim=5, hidden_units=32):
@@ -130,19 +141,9 @@ class A2C:
             actions[ids_t[i]].append(a_t[i])
             times[ids_t[i]].append(t_t);
 
-    def update_animation(frame,imaging_data):
-        loc = imaging_data[0];
-        num_each = imaging_data[1];
-#        old_points = plot_points;
-#        old_points.set_color('blue');
-        plot_points = plt.scatter(loc[0],loc[1],num_each,color='r',zorder=4);
-        plt.draw();
-        plt.pause(0.001);
-        plot_points.remove();
-
-    def create_animation(imaging_data):
+    def create_animation(self,imaging_data):
         fig = plt.figure(1)
-        plt.ion();
+#        plt.ion();
         m = Basemap(projection = 'stere', 
                     llcrnrlat=37.765,urcrnrlat=37.81,
                     llcrnrlon=-122.445,urcrnrlon=-122.385,
@@ -152,19 +153,19 @@ class A2C:
         m.fillcontinents(color='mediumseagreen',zorder=2)
         m.readshapefile("sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119","sf_roads",zorder=3);
         plt.title("Downtown San Francisco");
-        plt.xylabel("East-West");
+        plt.xlabel("East-West");
         plt.ylabel("North-South");
         plot_points = plt.scatter(0,0,1,'r');
 
         for t in imaging_data.keys():
-            lon = imaging_data[t][0]
-            lat = imaging_data[t][1]
+            lat = imaging_data[t][0]
+            lon = imaging_data[t][1]
             loc = m(lon,lat)
             dst = loc[0] + loc[1];
             num_each = [dst.count(i) for i in dst];
             imaging_data[t] = (loc,num_each);
 
-        ani = FuncAnimation(fig, update_animation, frames=imaging_data.keys(), fargs=imaging_data)
+        ani = FuncAnimation(fig, update_animation, frames=imaging_data.keys(), fargs=(imaging_data,plot_points))
         plt.show()
 
 
@@ -183,7 +184,7 @@ class A2C:
             imaging_data = {}
             
             #beginning of an episode run 
-            for t in range(self.sim.start_t, self.sim.end_t):
+            for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
 
@@ -238,7 +239,7 @@ class A2C:
                             self.sim.pmr_ids[t])
             #end of an episode run and results aggregated
            
-#            create_animation(imaging_data);
+            self.create_animation(imaging_data);
 
             for car_id, r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,
