@@ -141,7 +141,7 @@ class A2C:
             rewards = {}
             actions = {}
             times = {}
-            """
+
             fig = plt.figure(1)
             plt.ion();
             m = Basemap(projection = 'stere', 
@@ -149,13 +149,12 @@ class A2C:
                         llcrnrlon=-122.445,urcrnrlon=-122.385,
                         resolution='f',
                         lat_0 = 37.78,lon_0 = -122.41)
-            m.drawmapboundary(fill_color='aqua')
-            m.fillcontinents(color='mediumseagreen')
-            m.readshapefile("sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119","sf_roads");
+            m.drawmapboundary(fill_color='aqua',zorder=1)
+            m.fillcontinents(color='mediumseagreen',zorder=2)
+            m.readshapefile("sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119","sf_roads",zorder=3);
             plt.xlabel('lon')
             plt.ylabel('lat')
             plt.show()
-            """
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t):
@@ -184,18 +183,17 @@ class A2C:
                 print("ids " + str(len(ids_t)))
                 
                 i = 0;
-                lat = [0] * len(states_t);
-                lon = [0] * len(states_t);
-                for state in states_t:
-                    lat[i] = state[0];
-                    lon[i] = state[1];
-                    i += 1;
-                #loc = m(lon,lat)
-                #plot_points = plt.scatter(loc[0],loc[1],1,color='r',zorder=2)
-                #plt.draw();
-                #plt.pause(0.001);
-                #plot_points.remove();
-
+                lat = [];
+                lon = [];
+                for node in self.sim.curr_nodes:
+                    loc = self.sim.geo_utils.get_centroid_v2(node,self.sim.n_lng_grids)
+                    lat.append(loc[0]);
+                    lon.append(loc[1]);
+                loc = m(lon,lat)
+                plot_points = plt.scatter(loc[0],loc[1],5,color='r',zorder=4);
+                plt.draw();
+                plt.pause(0.001);
+                plot_points.remove();
 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)

@@ -135,3 +135,9 @@ class GeoUtilities:
         #print(len(self.lng_grids))
         return [(self.lat_grids[c1 - 1] + self.lat_grids[c1]) / 2, 
             (self.lng_grids[c2 - 1] + self.lng_grids[c2]) / 2]
+
+    def get_centroid_v2(self, n, n_lng_grids):
+        c2 = int(n % n_lng_grids)
+        c1 = int(n / n_lng_grids)
+        return [(self.lat_grids[c1-1] + self.lat_grids[c1]) / 2, 
+            (self.lng_grids[c2-1] + self.lng_grids[c2]) / 2]
