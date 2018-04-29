@@ -158,7 +158,7 @@ class A2C:
         for i in range(10):
             plot_points = plt.scatter(0,0,1,'r');
             for t in imaging_data.keys():
-                plot_points = self.update_animation(imaging_data[t],plot_points);
+                plot_points = self.update_animation(imaging_data[t],plot_points)
             plot_points.remove();
         
     def init_animation(self):
@@ -179,12 +179,12 @@ class A2C:
 
 
     def train(self):
-        max_epochs = 10
+        max_epochs = 100
         rewards_test = []
         costs = []
         for epoch in range(max_epochs):
-            start_t = np.random.randint(self.sim.past_t, 
-                    self.max_t - self.sim.episode_duration)
+            start_t = 20#np.random.randint(self.sim.past_t, 
+                    #self.max_t - self.sim.episode_duration)
             self.sim.reset(start_t)
 
             trajs = {}
@@ -251,7 +251,7 @@ class A2C:
                             self.sim.pmr_ids[t])
             #end of an episode run and results aggregated
            
-#            self.create_animation(imaging_data);
+            #self.create_animation(imaging_data);
 
             for car_id, r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,
@@ -274,7 +274,7 @@ class A2C:
 #                    if (cum_td[-1] < self.n):
                         # train on next drop off location
                 
-                _, c = self.critic_sess.run([self.critic_train_op,
+                _, c = self.critic_sess.run([self.critic_train_op, 
                     self.critic_loss_op], 
                     feed_dict={self.critic_states: trajs[car_id], 
                         self.critic_values: R})
