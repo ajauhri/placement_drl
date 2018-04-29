@@ -3,6 +3,7 @@ import tensorflow as tf, numpy as np, sys
 import logging
 import matplotlib.pyplot as plt
 import pandas as pd
+from mpl_toolkits.basemap import Basemap
 
 class A2C:
     def __init__(self, sim, n_time_bins, state_dim=3, 
@@ -86,7 +87,7 @@ class A2C:
                 }
             
             self.critic_states = tf.placeholder("float", [None, self.state_dim])
-            self.critic_value = tf.placeholder("float", [None])
+            self.critic_values = tf.placeholder("float", [None])
            
             critic_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.critic_states, 
                 critic_weights['h1']), critic_biases['b1']))
@@ -98,7 +99,7 @@ class A2C:
                     critic_weights['out']) + critic_biases['out']
             
             self.critic_loss_op = tf.reduce_mean(tf.square(\
-                    tf.subtract(self.critic_value, self.critic_out_layer)));
+                    tf.subtract(self.critic_values, self.critic_out_layer)));
             self.critic_optimizer = tf.train.AdamOptimizer(self.critic_alpha)
             self.critic_train_op = self.critic_optimizer.\
                     minimize(self.critic_loss_op)
@@ -115,18 +116,22 @@ class A2C:
         print(a, np.sum(a))
         print(c)
         """
-    def _aggregate(self, trajs, rewards, actions, states_t, r_t, a_t, ids_t):
+    def _aggregate(self, trajs, rewards, actions, times, states_t, r_t, a_t, t_t, ids_t):
         for i in range(len(states_t)):
             if ids_t[i] not in trajs:
                 trajs[ids_t[i]] = []
                 rewards[ids_t[i]] = []
                 actions[ids_t[i]] = []
+                times[ids_t[i]] = [];
             trajs[ids_t[i]].append(states_t[i])
             rewards[ids_t[i]].append(r_t[i])
             actions[ids_t[i]].append(a_t[i])
+            times[ids_t[i]].append(t_t);
 
     def train(self):
-        max_epochs = 100
+        max_epochs = 10
+        rewards_test = []
+        costs = []
         for epoch in range(max_epochs):
             start_t = 6
             self.sim.reset(start_t)
@@ -134,6 +139,19 @@ class A2C:
             trajs = {}
             rewards = {}
             actions = {}
+            times = {}
+
+            fig = plt.figure(1)
+            plt.ion();
+            m = Basemap(projection = 'stere', 
+                        llcrnrlat=37.7,urcrnrlat=37.82,
+                        llcrnrlon=-122.53,urcrnrlon=-122.35,
+                        resolution='f',
+                        lat_0 = 37.76,lon_0 = -122.45)
+            m.drawcoastlines()
+            plt.xlabel('lon')
+            plt.ylabel('lat')
+            plt.show()
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t):
@@ -159,6 +177,21 @@ class A2C:
 
                 states_t = self.sim.curr_states
                 ids_t = self.sim.curr_ids
+                print "ids " + str(len(ids_t))
+                
+                i = 0;
+                lat = [0] * len(states_t);
+                lon = [0] * len(states_t);
+                for state in states_t:
+                    lat[i] = state[0];
+                    lon[i] = state[1];
+                    i += 1;
+                loc = m(lon,lat)
+                plot_points = plt.scatter(loc[0],loc[1],1,color='r')
+                plt.draw();
+                plt.pause(0.001);
+                plot_points.remove();
+
 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
@@ -168,111 +201,86 @@ class A2C:
                 assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
                 assert (len(ids_t) + len(pmr_a_t)) == len(r_t)  
                 
-                print('iter %d' % t)
+#                print('iter %d' % t)
                 
-                self._aggregate(trajs, rewards, actions, states_t, 
-                        r_t, a_t, ids_t)
+                self._aggregate(trajs, rewards, actions, times, states_t, 
+                        r_t, a_t, t, ids_t)
 
                 if t in self.sim.pmr_ids:
-                    self._aggregate(trajs, rewards, actions, 
+                    self._aggregate(trajs, rewards, actions, times,
                             self.sim.pmr_states[t],
                             r_t,
                             pmr_a_t,
+                            t,
                             self.sim.pmr_ids[t])
             #end of an episode run and results aggregated
            
             
             for car_id, r in rewards.items():
-                r = np.array(r)
-                nz = np.where(r != 0)[0] 
                 V_omega = self.critic_sess.run(self.critic_out_layer, 
-                            feed_dict={self.critic_states: trajs[car_id]})
+                               feed_dict={self.critic_states: trajs[car_id]}).flatten();
                 
-                prev_succ = 0
-                # iterate for all successful pickups
-                for succ in nz:
-                    T = succ - prev_succ + 1
-                    R = [0]*T
-                    for ts in reversed(range(T)):
-                        ts += prev_succ
-                        if self.n + ts >= T:
-                            v_end = 0
-                        else:
-                            v_end = V_omega[ts + self.n]
-
-                        cum_sum = 0
-                        for k in range(0, self.n):
-                            if ts+k < T:
-                                cum_sum += r[ts+k] * (self.gamma**k)
-                            else:
-                                break
-                        R[ts] = cum_sum + v_end * (self.gamma**self.n) 
-                      
-                    prev_succ = succ
-                #print(r, end=" ")
-                print(' done')
-                # train critic
-            break
-            """
-            
-                #print(k,v, len(v), v[np.where(v!=0)[0]])
-#                curr_pd['policy'] = pi_t.tolist();  # i don't think you need this...
-                curr_pd['actions'] = a_t;
-                curr_pd['terminal'] = np.random.randint(0,2,5).tolist(); # fix with correct implementation
-#                next_state = self.sim.get_state_rep(epoch+1) # get the values from env correctly
-#                all_pd.append(curr_pd); # will want this
-
-#                curr_state = next_state; #update state
-            
-                car_ids = np.unique(curr_pd.car_ids.as_matrix()).tolist()
-                for car in car_ids:
-                    if (curr_pd[curr_pd.car_ids == car].terminal.values[0] == True):
-                        car_pd = all_pd[all_pd.car_ids == car];
-                        rewards = car_pd.rewards.as_matrix();
-                        map = ~np.isnan(rewards);
-                        rewards = rewards[map].tolist();
-                        discount = [];
-                        for j in range(len(rewards)):
-                            discount.append(rewards[j]);
-                            for k in range(len(rewards[j+1:])):
-                                discount[j] += discount[k] * self.gamma**k;
-                                
-                        states = car_pd.states.as_matrix()
-                        states = states[map].tolist();
-                        _, c = self.sess.run([self.critic_train_op, self.critic_loss_op], 
-                                             feed_dict={self.critic_states: states, 
-                                                        self.critic_reward: discount})
-                    
-            print(epoch)
+                t_s = times[car_id];
+                R = [0]*len(r);
+                for i in range(len(t_s)):
+                    ts = t_s[i:];
+                    tp = [ts[0]] + ts[0:-1];
+                    td = (np.asarray(ts) - np.asarray(tp)).tolist();
+                    cum_td = np.cumsum(td).tolist();
+                    cum_r = 0;
+                    for j in range(len(ts)):
+                        if cum_td[j] >= self.n:
+                            cum_r += V_omega[i+j] * (self.gamma**cum_td[j]);
+                            break;
+                        cum_r += r[i+j] * (self.gamma**cum_td[j]);
+                    R[i] = cum_r
+#                    if (cum_td[-1] < self.n):
+                        # train on next drop off location
                 
-            car_ids = np.unique(all_pd.car_ids.values).tolist();
-            for car in car_ids:
-                if (all_pd[all_pd.car_ids == car].terminal == 1).any():
-                    car_pd = all_pd[all_pd.car_ids == car];
-                    rewards = car_pd.rewards.as_matrix();
-                    map = ~np.isnan(rewards);
-                    rewards = rewards[map].tolist();
-                    discount = [];
-                    steps = range(len(rewards));
-                    for j in steps:
-                        discount.append(rewards[j]);
-                        for k in steps[j+1:]:
-                            discount[j] += discount[k] * self.gamma**k;
-                    states = car_pd.states.as_matrix()[map].tolist();
-                    critic_value=self.sess.run(self.critic_out_layer,feed_dict={self.critic_states: states}).flatten()
-                    values = (discount - critic_value);
-                    actions = car_pd.actions.as_matrix()[map].tolist();
-                    one_hot_values = np.zeros([len(actions),self.action_dim]);
-                    for j in steps:
-                        one_hot_values[j,actions[j]] = values[j];
-                    _, c = self.sess.run([self.actor_train_op, self.actor_loss_op], 
-                                         feed_dict={self.actor_states: states, 
-                                                    self.actor_values: one_hot_values});
+                _, c = self.critic_sess.run([self.critic_train_op, self.critic_loss_op], 
+                                     feed_dict={self.critic_states: trajs[car_id], 
+                                                self.critic_values: R})
+
+            temp_c = [];
+            temp_r = [];
+            for car_id,r in rewards.items():
+                V_omega = self.critic_sess.run(self.critic_out_layer, 
+                               feed_dict={self.critic_states: trajs[car_id]}).flatten();
+
+                t_s = times[car_id];
+                R = [0]*len(r)
+                for i in range(len(t_s)):
+                    ts = t_s[i:];
+                    tp = [ts[0]] + ts[0:-1];
+                    td = (np.asarray(ts) - np.asarray(tp)).tolist();
+                    cum_td = np.cumsum(td).tolist();
+                    cum_r = 0
+                    for j in range(len(ts)):
+                        if cum_td[j] >= self.n:
+                            cum_r += V_omega[i+j] * (self.gamma**cum_td[j]);
+                            break;
+                        cum_r += r[i+j] * (self.gamma**cum_td[j]);
+                    R[i] = cum_r
+                
+                values = (R - V_omega);
+                a_s = actions[car_id];
+                one_hot_values = np.zeros([len(a_s),self.action_dim]);
+                for j in range(len(a_s)):
+                    one_hot_values[j,a_s[j]] = values[j];
+                _, c = self.actor_sess.run([self.actor_train_op, self.actor_loss_op], 
+                                           feed_dict={self.actor_states: trajs[car_id], 
+                                                      self.actor_values: one_hot_values});
+                temp_c.append(c);
+                temp_r.append(np.sum(r));
+
+            print "reward " + str(np.sum(temp_r))
+            print "cost " + str(np.mean(temp_c))
 
 #            logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
 #                          (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
-            costs.append(cost)
-#            rewards.append(self.test())
+            costs.append(np.mean(temp_c))
+            rewards_test.append(np.sum(temp_r));
+#            rewards_test.append(self.test())
 
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
@@ -280,10 +288,10 @@ class A2C:
         plt.xlabel('epochs')
         plt.ylabel('cost')
         ax2 = ax1.twinx()
-        ax2.plot(rewards, 'b--', linewidth=1)
+        ax2.plot(rewards_test, 'b--', linewidth=1)
         plt.ylabel('reward')
         plt.show()
-        """
+
 
     def test(self):
         self.sim.start_test()
