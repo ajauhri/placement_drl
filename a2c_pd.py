@@ -2,7 +2,6 @@ from __future__ import division
 import tensorflow as tf, numpy as np, sys
 import logging
 import matplotlib.pyplot as plt
-import pandas as pd
 from mpl_toolkits.basemap import Basemap
 
 class A2C:
@@ -144,11 +143,13 @@ class A2C:
             fig = plt.figure(1)
             plt.ion();
             m = Basemap(projection = 'stere', 
-                        llcrnrlat=37.7,urcrnrlat=37.82,
-                        llcrnrlon=-122.53,urcrnrlon=-122.35,
+                        llcrnrlat=37.765,urcrnrlat=37.81,
+                        llcrnrlon=-122.445,urcrnrlon=-122.385,
                         resolution='f',
-                        lat_0 = 37.76,lon_0 = -122.45)
-            m.drawcoastlines()
+                        lat_0 = 37.78,lon_0 = -122.41)
+            m.drawmapboundary(fill_color='aqua')
+            m.fillcontinents(color='mediumseagreen')
+            m.readshapefile("sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119","sf_roads");
             plt.xlabel('lon')
             plt.ylabel('lat')
             plt.show()
@@ -187,7 +188,7 @@ class A2C:
                     lon[i] = state[1];
                     i += 1;
                 loc = m(lon,lat)
-                plot_points = plt.scatter(loc[0],loc[1],1,color='r')
+                plot_points = plt.scatter(loc[0],loc[1],1,color='r',zorder=2)
                 plt.draw();
                 plt.pause(0.001);
                 plot_points.remove();
@@ -270,10 +271,6 @@ class A2C:
 
                 prob_out = self.actor_sess.run(self.actor_out_layer,
                                                feed_dict={self.actor_states: trajs[car_id]})
-                print(prob_out)
-                print(np.log(np.clip(prob_out,1E-15,0.99)))
-                print(np.log(np.clip(prob_out,1E-15,0.99)) * one_hot_values)
-                break;
                 _, c = self.actor_sess.run([self.actor_train_op, self.actor_loss_op], 
                                            feed_dict={self.actor_states: trajs[car_id], 
                                                       self.actor_values: one_hot_values});
@@ -281,7 +278,7 @@ class A2C:
                 temp_r.append(np.sum(r));
 
             print("reward " + str(np.sum(temp_r)))
-            print("cost " + str(temp_c))
+            print("cost " + str(np.mean(temp_c)))
 
 #            logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
 #                          (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
