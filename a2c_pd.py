@@ -16,7 +16,7 @@ class A2C:
         self.max_t = max_t
         self.actor_alpha = 0.0001
         self.critic_alpha = 0.0001
-        self.gamma = 0.99
+        self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 5
 
@@ -63,8 +63,8 @@ class A2C:
                     tf.matmul(self.actor_l3, actor_weights['out']), 
                         actor_biases['out']))
 
-            self.actor_loss_op = tf.reduce_mean(tf.log(tf.clip_by_value(\
-                    self.actor_out_layer,1E-15,0.99))*self.actor_values)
+            self.actor_loss_op = tf.reduce_mean(tf.multiply(tf.log(tf.clip_by_value(\
+                    self.actor_out_layer,1E-15,0.99)),self.actor_values))
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
                     self.actor_loss_op)
@@ -196,7 +196,7 @@ class A2C:
 #            self.init_animation();
             
             #beginning of an episode run 
-            for t in range(self.sim.start_t, self.sim.end_t):
+            for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
                 
@@ -300,7 +300,7 @@ class A2C:
                         cum_r += r[i+j] * (self.gamma**cum_td[j]);
                     R[i] = cum_r
                 
-                values = (R - V_omega);
+                values = np.abs(R - V_omega);
                 a_s = actions[car_id];
                 one_hot_values = np.zeros([len(a_s),self.action_dim]);
                 
