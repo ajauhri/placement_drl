@@ -1,5 +1,6 @@
 from __future__ import division
 import numpy as np
+import copy
 
 class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
@@ -70,7 +71,7 @@ class Sim:
         self.curr_t = t
         th = self.time_utils.get_hour_of_day(t)
         self.car_id_counter = 0
-        self.requests = dict(self.rrs)
+        self.requests = copy.deepcopy(self.rrs)
         
         self.curr_ids = []
         self.curr_states = []

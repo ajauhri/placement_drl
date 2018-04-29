@@ -16,7 +16,11 @@ class A2C:
         self.max_t = max_t
         self.actor_alpha = 0.0001
         self.critic_alpha = 0.0001
+<<<<<<< HEAD
         self.gamma = 0.90
+=======
+        self.gamma = 0.9
+>>>>>>> 00deeaca87b5a663648bf4d456a5dad08d37aa07
         self.epsilon = 0.5
         self.n = 5
 
@@ -26,6 +30,12 @@ class A2C:
         self.data_for_day = num_bins_in_hour * num_hours_per_day
 
         self.setup_actor_critic()
+    
+    def _add_lat_lng(self, lat, lon, nodes):
+        for node in self.sim.curr_nodes:
+            loc = self.sim.geo_utils.get_centroid_v2(node,self.sim.n_lng_grids)
+            lat.append(loc[0]);
+            lon.append(loc[1]);
 
     def setup_actor_critic(self):
         with tf.Graph().as_default() as actor:
@@ -63,8 +73,13 @@ class A2C:
                     tf.matmul(self.actor_l3, actor_weights['out']), 
                         actor_biases['out']))
 
+<<<<<<< HEAD
             self.actor_loss_op = tf.reduce_mean(tf.multiply(tf.log(tf.clip_by_value(\
                     self.actor_out_layer,1E-15,0.99)),self.actor_values))
+=======
+            self.actor_loss_op = tf.reduce_mean(tf.log(tf.clip_by_value(\
+                    self.actor_out_layer, 1e-15, 0.99))*self.actor_values)
+>>>>>>> 00deeaca87b5a663648bf4d456a5dad08d37aa07
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
                     self.actor_loss_op)
@@ -199,12 +214,11 @@ class A2C:
             for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
-                
+                print(p_t) 
                 a_t = []
                 for j in range(len(p_t)):
                     a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
                     a_t.append(a)
-                
                 # obtain actions for previously (p) matched (m) rides (r) 
                 pmr_a_t = []
                 if t in self.sim.pmr_states:
@@ -221,12 +235,11 @@ class A2C:
                 ids_t = self.sim.curr_ids
                 print("ts %d, ids %d" % (t, len(ids_t)))
                 
-                lat = [];
-                lon = [];
-                for node in self.sim.curr_nodes:
-                    loc = self.sim.geo_utils.get_centroid_v2(node,self.sim.n_lng_grids)
-                    lat.append(loc[0]);
-                    lon.append(loc[1]);
+                lat = []
+                lon = []
+                self._add_lat_lng(lat, lon, self.sim.curr_nodes)
+                if t in self.sim.pmr_dropoffs:
+                    self._add_lat_lng(lat, lon, self.sim.pmr_dropoffs[t])
                 imaging_data[t] = (lat,lon);
 
                 # step in the enviornment
@@ -271,8 +284,6 @@ class A2C:
                             break;
                         cum_r += r[i+j] * (self.gamma**cum_td[j]);
                     R[i] = cum_r
-#                    if (cum_td[-1] < self.n):
-                        # train on next drop off location
                 
                 _, c = self.critic_sess.run([self.critic_train_op, 
                     self.critic_loss_op], 
@@ -305,10 +316,7 @@ class A2C:
                 one_hot_values = np.zeros([len(a_s),self.action_dim]);
                 
                 for j in range(len(a_s)):
-                    one_hot_values[j,a_s[j]] = values[j];
-
-                prob_out = self.actor_sess.run(self.actor_out_layer, 
-                        feed_dict={self.actor_states: trajs[car_id]})
+                    one_hot_values[j, a_s[j]] = values[j];
 
                 _, c = self.actor_sess.run([self.actor_train_op,
                     self.actor_loss_op],

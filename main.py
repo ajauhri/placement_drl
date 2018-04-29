@@ -70,7 +70,10 @@ def main():
     # segregate data based on time
     #city = config['city'].iloc[0]
     max_t = 40
+<<<<<<< HEAD
 
+=======
+>>>>>>> 00deeaca87b5a663648bf4d456a5dad08d37aa07
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
             train_dropoff_buckets)
