@@ -16,7 +16,7 @@ class A2C:
         self.max_t = max_t
         self.actor_alpha = 0.0001
         self.critic_alpha = 0.0001
-        self.gamma = 0.99
+        self.gamma = 0.9
         self.epsilon = 0.5
         self.n = 5
 
@@ -70,7 +70,7 @@ class A2C:
                         actor_biases['out']))
 
             self.actor_loss_op = tf.reduce_mean(tf.log(tf.clip_by_value(\
-                    self.actor_out_layer,1E-15,0.99))*self.actor_values)
+                    self.actor_out_layer, 1e-15, 0.99))*self.actor_values)
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
                     self.actor_loss_op)
@@ -205,12 +205,11 @@ class A2C:
             for t in range(self.sim.start_t, self.sim.end_t):
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
-                
+                print(p_t) 
                 a_t = []
                 for j in range(len(p_t)):
                     a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
                     a_t.append(a)
-                
                 # obtain actions for previously (p) matched (m) rides (r) 
                 pmr_a_t = []
                 if t in self.sim.pmr_states:
@@ -276,8 +275,6 @@ class A2C:
                             break;
                         cum_r += r[i+j] * (self.gamma**cum_td[j]);
                     R[i] = cum_r
-#                    if (cum_td[-1] < self.n):
-                        # train on next drop off location
                 
                 _, c = self.critic_sess.run([self.critic_train_op, 
                     self.critic_loss_op], 
@@ -310,10 +307,7 @@ class A2C:
                 one_hot_values = np.zeros([len(a_s),self.action_dim]);
                 
                 for j in range(len(a_s)):
-                    one_hot_values[j,a_s[j]] = values[j];
-
-                prob_out = self.actor_sess.run(self.actor_out_layer, 
-                        feed_dict={self.actor_states: trajs[car_id]})
+                    one_hot_values[j, a_s[j]] = values[j];
 
                 _, c = self.actor_sess.run([self.actor_train_op,
                     self.actor_loss_op],
