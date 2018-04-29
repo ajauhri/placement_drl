@@ -98,7 +98,7 @@ def main():
                 train_time_utils.get_hour_of_day(k)))
 
             
-        hidden_units = 16;
+        hidden_units = 128;
         model = A2C(sim, 10, len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1, 
                     sim.n_actions, hidden_units, max_t)
 

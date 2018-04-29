@@ -4,21 +4,10 @@ import logging
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from matplotlib.animation import FuncAnimation
-
-def update_animation(frame,imaging_data,plot_points):
-    old_points = plot_points;
-    old_points.set_color('blue');
-    loc = imaging_data[frame][0];
-    num_each = imaging_data[frame][1];
-    plot_points = plt.scatter(loc[0],loc[1],num_each,color='r',zorder=4);
-    plt.draw();
-    plt.pause(0.001);
-    old_points.remove();
-    return plot_points
-
+ 
 class A2C:
     def __init__(self, sim, n_time_bins, state_dim=3, 
-            action_dim=5, hidden_units=32, max_t):
+            action_dim=5, hidden_units=32, max_t=100):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.hidden_units = hidden_units
@@ -146,9 +135,21 @@ class A2C:
             actions[ids_t[i]].append(a_t[i])
             times[ids_t[i]].append(t_t);
 
+    def update_animation(self,imaging_data,plot_points):
+        old_points = plot_points;
+        old_points.set_color('blue');
+        loc = imaging_data[0];
+        num_each = imaging_data[1];
+        plot_points = plt.scatter(loc[0],loc[1],num_each,color='r',zorder=4);
+        plt.draw();
+        plt.pause(0.5);
+        old_points.remove();
+        return plot_points;
+
+
     def create_animation(self,imaging_data):
         fig = plt.figure(1)
-#        plt.ion();
+        plt.ion();
         m = Basemap(projection = 'stere', 
                     llcrnrlat=37.765,urcrnrlat=37.81,
                     llcrnrlon=-122.445,urcrnrlon=-122.385,
@@ -160,8 +161,8 @@ class A2C:
         plt.title("Downtown San Francisco");
         plt.xlabel("East-West");
         plt.ylabel("North-South");
-        plot_points = plt.scatter(0,0,1,'r');
-
+        plt.show();
+        
         for t in imaging_data.keys():
             lat = imaging_data[t][0]
             lon = imaging_data[t][1]
@@ -169,9 +170,14 @@ class A2C:
             dst = loc[0] + loc[1];
             num_each = [dst.count(i) for i in dst];
             imaging_data[t] = (loc,num_each);
+        
+        for i in range(10):
+            plot_points = plt.scatter(0,0,1,'r');
+            for t in imaging_data.keys():
+                print t
+                plot_points = self.update_animation(imaging_data[t],plot_points);
+            plot_points.remove();
 
-        ani = FuncAnimation(fig, update_animation, frames=imaging_data.keys(), fargs=(imaging_data,plot_points))
-        plt.show()
 
 
     def train(self):
