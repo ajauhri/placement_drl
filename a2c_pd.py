@@ -178,7 +178,7 @@ class A2C:
 
                 states_t = self.sim.curr_states
                 ids_t = self.sim.curr_ids
-                print "ids " + str(len(ids_t))
+                print("ids " + str(len(ids_t))
                 
                 i = 0;
                 lat = [0] * len(states_t);
@@ -271,18 +271,14 @@ class A2C:
 
                 prob_out = self.actor_sess.run(self.actor_out_layer,
                                                feed_dict={self.actor_states: trajs[car_id]})
-                print prob_out
-                print np.log(np.clip(prob_out,1E-15,0.99))
-                print np.log(np.clip(prob_out,1E-15,0.99)) * one_hot_values;
-                break;
                 _, c = self.actor_sess.run([self.actor_train_op, self.actor_loss_op], 
                                            feed_dict={self.actor_states: trajs[car_id], 
                                                       self.actor_values: one_hot_values});
                 temp_c.append(c);
                 temp_r.append(np.sum(r));
 
-            print "reward " + str(np.sum(temp_r))
-            print "cost " + str(temp_c)
+            print("reward " + str(np.sum(temp_r)))
+            print("cost " + str(np.mean(temp_c)))
 
 #            logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
 #                          (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
