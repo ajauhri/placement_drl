@@ -89,7 +89,26 @@ class GeoUtilities:
         lng_steps = int(abs(self.lng_max - self.lng_min) 
             * self.longitude_meters / self.cell_length_meters)
         self.lng_grids = np.linspace(self.lng_min, self.lng_max, lng_steps)
+        #print(len(self.lat_grids), len(self.lng_grids))
 
+    def get_node(self, p):
+        lat_cell = np.argmax(p[0] < self.lat_grids) \
+            if self._within_boundary(
+                p[0], self.lat_grids[0], self.lat_grids[-1]) \
+            else 0
+        
+        lng_cell = np.argmax(p[1] < self.lng_grids) \
+            if self._within_boundary(
+                p[1], self.lng_grids[0], self.lng_grids[-1]) \
+            else 0
+        
+        node = (lat_cell - 1) * len(self.lng_grids) + \
+                (lng_cell - 1)
+
+        return node, lat_cell - 1, lng_cell - 1
+
+        
+    """
     def get_node(self, p):
         lat_cell = np.argmax(p[0] < self.lat_grids) \
             if self._within_boundary(
@@ -107,44 +126,12 @@ class GeoUtilities:
                 (lng_cell - 1)
 
         return node, lat_cell - 1, lng_cell - 1
-
-
-    def get_action_space(self, lat_idx, lng_idx):
-        """
-        Given a pair of lat. and lng. index, this function returns the boundaries
-        of the possible actions which can be taken. The return is of dtype in the 
-        half-open interval i.e. [start_lat_idx, end_lat_idx) and so fort for 
-        longitudes.
-        """
-        actions = {}
-        if lat_idx - 1 < 0:
-            actions[1] = [0, lng_idx]
-        else:
-            actions[1] = [lat_idx - 1, lng_idx]
-
-        if lat_idx + 1 >= len(self.lat_grids):
-            actions[3] = [len(self.lat_grids) - 1, lng_idx]
-        else:
-            actions[3] = [lat_idx + 1, lng_idx]
-
-        if lng_idx - 1 < 0:
-            actions[0] = [lat_idx, 0]
-        else:
-            actions[0] = [lat_idx, lng_idx - 1]
-
-        if lng_idx + 1 >= len(self.lng_grids):
-            actions[2] = [lat_idx, len(self.lng_grids) - 1]
-        else:
-            actions[2] = [lat_idx, lng_idx + 1]
-
-        for k,v in actions.iteritems():
-            node = v[0] * len(self.lng_grids) + v[1] 
-            actions[k] = node
-
-        return actions
+    """
 
     def get_centroid(self, n):
         c2 = n % len(self.lng_grids) + 1
         c1 = int((n - c2 + 1) / len(self.lng_grids)) + 1
+        #print(c1, c2)
+        #print(len(self.lng_grids))
         return [(self.lat_grids[c1 - 1] + self.lat_grids[c1]) / 2, 
             (self.lng_grids[c2 - 1] + self.lng_grids[c2]) / 2]

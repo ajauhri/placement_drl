@@ -54,6 +54,16 @@ def main():
                 cell_length_meters)
     geo_utils.set_grids()
     
+    """
+    print(geo_utils.orthodromic_dist([config['lat_min'].iloc[0], 
+        config['lng_min'].iloc[0]],
+        [config['lat_min'].iloc[0],config['lng_max'].iloc[0] ]))
+
+    print(geo_utils.orthodromic_dist([config['lat_min'].iloc[0], 
+        config['lng_min'].iloc[0]],
+        [config['lat_max'].iloc[0],config['lng_min'].iloc[0] ]))
+    """
+
     # segregate train data based on time
     train_time_utils = helpers.TimeUtilities(time_bin_width_secs)
     train_time_utils.set_bounds(X)
@@ -84,15 +94,17 @@ def main():
                         geo_utils.get_node(X[i, 5:7])
                 pickup_node, p_lat_idx, p_lon_idx = \
                         geo_utils.get_node(X[i, 2:4])
-                 
-                
-                d_t = train_time_utils.get_bucket(X[i, 4])
-                p_t = train_time_utils.get_bucket(X[i, 1])
-                if pickup_node not in sim.rrs:
-                    sim.rrs[pickup_node] = []
-                sim.rrs[pickup_node].append(helpers.rr(i, k+1, p_t, d_t, 
-                    dropoff_node, d_lat_idx, d_lon_idx, 
-                    pickup_node, p_lat_idx, p_lon_idx))
+
+                if (d_lat_idx > 0 and d_lon_idx > 0) or \
+                    (p_lat_idx > 0 and p_lon_idx > 0):
+                     
+                    d_t = train_time_utils.get_bucket(X[i, 4])
+                    p_t = train_time_utils.get_bucket(X[i, 1])
+                    if pickup_node not in sim.rrs:
+                        sim.rrs[pickup_node] = []
+                    sim.rrs[pickup_node].append(helpers.rr(i, k+1, p_t, d_t, 
+                        dropoff_node, d_lat_idx, d_lon_idx, 
+                        pickup_node, p_lat_idx, p_lon_idx))
             
             logging.info("Loaded map for time bin %d, hour of day %d" % (k, 
                 train_time_utils.get_hour_of_day(k)))
