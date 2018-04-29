@@ -29,13 +29,13 @@ class A2C:
     def setup_actor_critic(self):
         with tf.Graph().as_default() as actor:
             actor_weights = {
-                'h1': tf.Variable(tf.random_normal([self.state_dim, 
+                'h1': tf.Variable(tf.random_uniform([self.state_dim, 
                     self.hidden_units])),
-                'h2': tf.Variable(tf.random_normal([self.hidden_units, 
+                'h2': tf.Variable(tf.random_uniform([self.hidden_units, 
                     self.hidden_units])),
-                'h3': tf.Variable(tf.random_normal([self.hidden_units, 
+                'h3': tf.Variable(tf.random_uniform([self.hidden_units, 
                     self.hidden_units])),
-                'out': tf.Variable(tf.random_normal([self.hidden_units, 
+                'out': tf.Variable(tf.random_uniform([self.hidden_units, 
                     self.action_dim]))
                 }
 
@@ -59,7 +59,7 @@ class A2C:
                     tf.matmul(actor_l3, actor_weights['out']), 
                     actor_biases['out']))
 
-            self.actor_loss_op = tf.reduce_mean(tf.log(self.actor_out_layer)*self.actor_values)
+            self.actor_loss_op = tf.reduce_mean(tf.log(tf.clip_by_value(self.actor_out_layer,1E-15,0.99))*self.actor_values)
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
                     self.actor_loss_op)
@@ -70,13 +70,13 @@ class A2C:
 
         with tf.Graph().as_default() as critic:
             critic_weights = {
-                'h1': tf.Variable(tf.random_normal([self.state_dim, 
+                'h1': tf.Variable(tf.random_uniform([self.state_dim, 
                     self.hidden_units])),
-                'h2': tf.Variable(tf.random_normal([self.hidden_units, 
+                'h2': tf.Variable(tf.random_uniform([self.hidden_units, 
                     self.hidden_units])),
-                'h3': tf.Variable(tf.random_normal([self.hidden_units,
+                'h3': tf.Variable(tf.random_uniform([self.hidden_units,
                     self.hidden_units])),
-                'out': tf.Variable(tf.random_normal([self.hidden_units, 1]))
+                'out': tf.Variable(tf.random_uniform([self.hidden_units, 1]))
                 }
             
             critic_biases = {
@@ -271,9 +271,9 @@ class A2C:
                 prob_out = self.actor_sess.run(self.actor_out_layer,
                                                feed_dict={self.actor_states: trajs[car_id]})
                 print prob_out
-                print np.log(prob_out)
-                print np.log(prob_out) * one_hot_values;
-
+                print np.log(np.clip(prob_out,1E-15,0.99))
+                print np.log(np.clip(prob_out,1E-15,0.99)) * one_hot_values;
+                break;
                 _, c = self.actor_sess.run([self.actor_train_op, self.actor_loss_op], 
                                            feed_dict={self.actor_states: trajs[car_id], 
                                                       self.actor_values: one_hot_values});
