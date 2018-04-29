@@ -84,6 +84,7 @@ class Sim:
         self.curr_t = t
         th = self.time_utils.get_hour_of_day(t)
         self.car_id_counter = 0
+        self.requests = dict(self.rrs)
         
         self.curr_ids = []
         self.curr_states = []
@@ -167,20 +168,20 @@ class Sim:
         placmt_node = self.get_next_node(dropoff_node, a)
         placmt_centroid = self.geo_utils.get_centroid(placmt_node)
         
-        if placmt_node in self.rrs:
-            for i in range(len(self.rrs[placmt_node])):
-                if (not self.rrs[placmt_node][i].picked) and (\
-                        (self.rrs[placmt_node][i].r_t < (self.curr_t + 1) and 
-                        self.rrs[placmt_node][i].r_t > (self.start_t - 20) and
-                        self.rrs[placmt_node][i].p_t > (self.curr_t + 1))
+        if placmt_node in self.requests:
+            for i in range(len(self.requests[placmt_node])):
+                if (not self.requests[placmt_node][i].picked) and (\
+                        (self.requests[placmt_node][i].r_t < (self.curr_t + 1) and 
+                        self.requests[placmt_node][i].r_t > (self.start_t - 20) and
+                        self.requests[placmt_node][i].p_t > (self.curr_t + 1))
                      or
-                     self.rrs[placmt_node][i].r_t == self.curr_t + 1):
-                        self.rrs[placmt_node][i].picked = True
+                     self.requests[placmt_node][i].r_t == self.curr_t + 1):
+                        self.requests[placmt_node][i].picked = True
                         
-                        pickup_t = self.rrs[placmt_node][i].p_t
-                        dropoff_t = self.rrs[placmt_node][i].d_t
+                        pickup_t = self.requests[placmt_node][i].p_t
+                        dropoff_t = self.requests[placmt_node][i].d_t
                         drive_t = dropoff_t - pickup_t
-                        self.rrs[placmt_node][i].p_t = self.curr_t + 1
+                        self.requests[placmt_node][i].p_t = self.curr_t + 1
                         
                         new_dropoff_t = (self.curr_t + 1) + drive_t
                         if new_dropoff_t < self.end_t:
@@ -190,19 +191,19 @@ class Sim:
                                 self.pmr_ids[new_dropoff_t] = []
 
                             dropoff_centroid = self.geo_utils.get_centroid(
-                                    self.rrs[placmt_node][i].dn)
+                                    self.requests[placmt_node][i].dn)
                             
                             # maintain all previously matched rides to be 
                             # considered for future cars
                             self.pmr_dropoffs[new_dropoff_t].append(
-                                    self.rrs[placmt_node][i].dn)
+                                    self.requests[placmt_node][i].dn)
                             self.pmr_states[new_dropoff_t].append(
                                     dropoff_centroid + [next_th])
                             self.pmr_ids[new_dropoff_t].append(car_id)
                         
                         matched = True
                         r = self.gamma ** ((self.curr_t + 1) - \
-                                self.rrs[placmt_node][i].r_t)
+                                self.requests[placmt_node][i].r_t)
                         return r, placmt_node, placmt_centroid
         if not matched:
             return 0, placmt_node, placmt_centroid
