@@ -67,21 +67,13 @@ def main():
     train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
     logging.info("Loaded training %d data points", len(X))
     
-    # segregate test data based on time
-    """
-    test_time_utils = helpers.TimeUtilities(time_bin_width_secs)
-    test_time_utils.set_bounds(Y)
-    test_pickup_buckets = test_time_utils.get_buckets(Y, 0)
-    test_dropoff_buckets = test_time_utils.get_buckets(Y, 4)
-    logging.info("Loaded test %d data points", len(Y))
-    """
-    
     # segregate data based on time
     #city = config['city'].iloc[0]
+    max_t = 100
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
             train_dropoff_buckets)
-    for k in sorted(train_dropoff_buckets.keys())[:50]:
+    for k in sorted(train_dropoff_buckets.keys())[:max_t]:
         if len(train_dropoff_buckets[k]) and (k+1) in train_pickup_buckets:
             rrs = {}
             
@@ -108,7 +100,7 @@ def main():
             
         hidden_units = 16;
         model = A2C(sim, 10, len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1, 
-                    sim.n_actions,hidden_units)
+                    sim.n_actions, hidden_units, max_t)
 
 
     model.train()

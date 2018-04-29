@@ -3,12 +3,13 @@ import numpy as np
 
 class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
-            dropoff_buckets, episode_duration=20, gamma=0.9):
+            dropoff_buckets, episode_duration=20, gamma=0.9, past_t=20):
         self.X = X
         self.rrs = {}
         self.dropoff_buckets = dropoff_buckets
         self.episode_duration = episode_duration
         self.gamma = gamma
+        self.past_t = past_t
  
         self.n_actions = n_actions
         self.time_utils = time_utils
@@ -165,8 +166,10 @@ class Sim:
         if placmt_node in self.requests:
             for i in range(len(self.requests[placmt_node])):
                 if (not self.requests[placmt_node][i].picked) and (\
-                        (self.requests[placmt_node][i].r_t < (self.curr_t + 1) and 
-                        self.requests[placmt_node][i].r_t > (self.start_t - 20) and
+                        (self.requests[placmt_node][i].r_t < (self.curr_t + 1) \
+                        and 
+                        self.requests[placmt_node][i].r_t > (self.start_t - \
+                                self.past_t) and
                         self.requests[placmt_node][i].p_t > (self.curr_t + 1))
                      or
                      self.requests[placmt_node][i].r_t == self.curr_t + 1):

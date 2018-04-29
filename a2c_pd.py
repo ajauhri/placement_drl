@@ -18,12 +18,13 @@ def update_animation(frame,imaging_data,plot_points):
 
 class A2C:
     def __init__(self, sim, n_time_bins, state_dim=3, 
-            action_dim=5, hidden_units=32):
+            action_dim=5, hidden_units=32, max_t):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.hidden_units = hidden_units
         self.sim = sim
         self.n_time_bins = n_time_bins
+        self.max_t = max_t
         self.actor_alpha = 0.0001
         self.critic_alpha = 0.0001
         self.gamma = 0.99
@@ -41,13 +42,16 @@ class A2C:
         with tf.Graph().as_default() as actor:
             actor_weights = {
                 'h1': tf.Variable(tf.random_uniform([self.state_dim, 
-                    self.hidden_units])),
+                    self.hidden_units], 
+                    dtype=tf.float32, minval=-.1, maxval=.1)),
                 'h2': tf.Variable(tf.random_uniform([self.hidden_units, 
-                    self.hidden_units])),
+                    self.hidden_units], 
+                    dtype=tf.float32, minval=-.1, maxval=.1)),
                 'h3': tf.Variable(tf.random_uniform([self.hidden_units, 
-                    self.hidden_units])),
+                    self.hidden_units], 
+                    dtype=tf.float32, minval=-.1, maxval=.1)),
                 'out': tf.Variable(tf.random_uniform([self.hidden_units, 
-                    self.action_dim]))
+                    self.action_dim], dtype=tf.float32, minval=-.1, maxval=.1))
                 }
 
             actor_biases = {
@@ -60,15 +64,15 @@ class A2C:
             self.actor_states = tf.placeholder("float", [None, self.state_dim])
             self.actor_values = tf.placeholder("float", [None, self.action_dim])
 
-            actor_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_states, 
+            self.actor_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_states, 
                 actor_weights['h1']), actor_biases['b1']))
-            actor_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_l1, 
+            self.actor_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_l1, 
                 actor_weights['h2']), actor_biases['b2']))
-            actor_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(actor_l2, 
+            self.actor_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_l2, 
                 actor_weights['h3']), actor_biases['b3']))
-            self.actor_out_layer = tf.nn.softmax(tf.nn.bias_add(\
-                    tf.matmul(actor_l3, actor_weights['out']), 
-                    actor_biases['out']))
+            self.actor_out_layer = tf.nn.softmax(tf.nn.bias_add(
+                    tf.matmul(self.actor_l3, actor_weights['out']), 
+                        actor_biases['out']))
 
             self.actor_loss_op = tf.reduce_mean(tf.log(tf.clip_by_value(\
                     self.actor_out_layer,1E-15,0.99))*self.actor_values)
@@ -83,12 +87,13 @@ class A2C:
         with tf.Graph().as_default() as critic:
             critic_weights = {
                 'h1': tf.Variable(tf.random_uniform([self.state_dim, 
-                    self.hidden_units])),
+                    self.hidden_units], minval=-.1, maxval=.1)),
                 'h2': tf.Variable(tf.random_uniform([self.hidden_units, 
-                    self.hidden_units])),
+                    self.hidden_units], minval=-.1, maxval=.1)),
                 'h3': tf.Variable(tf.random_uniform([self.hidden_units,
-                    self.hidden_units])),
-                'out': tf.Variable(tf.random_uniform([self.hidden_units, 1]))
+                    self.hidden_units], minval=-.1, maxval=.1)),
+                'out': tf.Variable(tf.random_uniform([self.hidden_units, 1],
+                    minval=-.1, maxval=.1))
                 }
             
             critic_biases = {
@@ -174,7 +179,8 @@ class A2C:
         rewards_test = []
         costs = []
         for epoch in range(max_epochs):
-            start_t = 6
+            start_t = np.random.randint(self.sim.past_t, 
+                    self.max_t - self.sim.episode_duration)
             self.sim.reset(start_t)
 
             trajs = {}
@@ -187,7 +193,7 @@ class A2C:
             for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
-
+                
                 a_t = []
                 for j in range(len(p_t)):
                     a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
@@ -330,7 +336,7 @@ class A2C:
         tot_r = 0
         n_dropoffs = 0
         
-        for epoch in range(self.n_time_bins)[:60]:
+        for epoch in range(self.n_time_bins)[:100]:
             if epoch in self.sim.test_dropoff_maps and \
                     len(self.sim.test_dropoff_maps) > 1:
                 states = []
