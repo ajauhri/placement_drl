@@ -10,13 +10,13 @@ class Sim:
         self.episode_duration = episode_duration
         self.gamma = gamma
  
-        self.n_lng_grids = n_lng_grids
         self.n_actions = n_actions
         self.time_utils = time_utils
         self.geo_utils = geo_utils
+        self.n_lng_grids = len(self.geo_utils.lng_grids)
+        self.n_lat_grids = len(self.geo_utils.lat_grids)
         self.classes = len(self.geo_utils.lat_grids) *\
                 len(self.geo_utils.lng_grids)
-
     
     def get_state(self, node, th):
         return np.eye(self.classes)[node].tolist() + [th]
@@ -38,8 +38,8 @@ class Sim:
                 next_node = [lat_idx - 1, lng_idx]
         #up 
         elif a == 3:
-            if lat_idx + 1 >= self.n_lng_grids:
-                next_node = [self.n_lng_grids - 1, lng_idx]
+            if lat_idx + 1 >= self.n_lat_grids:
+                next_node = [self.n_lat_grids - 1, lng_idx]
             else:
                 next_node = [lat_idx + 1, lng_idx]
         #left
@@ -54,6 +54,7 @@ class Sim:
                 next_node = [lat_idx, self.n_lng_grids - 1]
             else:
                 next_node = [lat_idx, lng_idx + 1]
+
         return next_node[0] * self.n_lng_grids + next_node[1]
     
     def sample_action_space(self):
