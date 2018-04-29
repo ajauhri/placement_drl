@@ -142,31 +142,15 @@ class A2C:
         num_each = imaging_data[1];
         plot_points = plt.scatter(loc[0],loc[1],num_each,color='r',zorder=4);
         plt.draw();
-        plt.pause(0.5);
+        plt.pause(1);
         old_points.remove();
         return plot_points;
 
-
     def create_animation(self,imaging_data):
-        fig = plt.figure(1)
-        plt.ion();
-        m = Basemap(projection = 'stere', 
-                    llcrnrlat=37.765,urcrnrlat=37.81,
-                    llcrnrlon=-122.445,urcrnrlon=-122.385,
-                    resolution='f',
-                    lat_0 = 37.78,lon_0 = -122.41)
-        m.drawmapboundary(fill_color='aqua',zorder=1)
-        m.fillcontinents(color='mediumseagreen',zorder=2)
-        m.readshapefile("sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119","sf_roads",zorder=3);
-        plt.title("Downtown San Francisco");
-        plt.xlabel("East-West");
-        plt.ylabel("North-South");
-        plt.show();
-        
         for t in imaging_data.keys():
             lat = imaging_data[t][0]
             lon = imaging_data[t][1]
-            loc = m(lon,lat)
+            loc = self.m(lon,lat)
             dst = loc[0] + loc[1];
             num_each = [dst.count(i) for i in dst];
             imaging_data[t] = (loc,num_each);
@@ -174,10 +158,24 @@ class A2C:
         for i in range(10):
             plot_points = plt.scatter(0,0,1,'r');
             for t in imaging_data.keys():
-                print(t)
-                plot_points = self.update_animation(imaging_data[t],plot_points);
+                plot_points = self.update_animation(imaging_data[t],plot_points)
             plot_points.remove();
-
+        
+    def init_animation(self):
+        self.fig = plt.figure(1)
+        plt.ion();
+        self.m = Basemap(projection = 'stere', 
+                    llcrnrlat=37.765,urcrnrlat=37.81,
+                    llcrnrlon=-122.445,urcrnrlon=-122.385,
+                    resolution='f',
+                    lat_0 = 37.78,lon_0 = -122.41)
+        self.m.drawmapboundary(fill_color='aqua',zorder=1)
+        self.m.fillcontinents(color='lightgreen',zorder=2)
+        self.m.readshapefile("sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119","sf_roads",zorder=3);
+        plt.title("Downtown San Francisco");
+        plt.xlabel("East-West");
+        plt.ylabel("North-South");
+        plt.show();
 
 
     def train(self):
@@ -194,6 +192,8 @@ class A2C:
             actions = {}
             times = {}
             imaging_data = {}
+
+#            self.init_animation();
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t):
