@@ -110,7 +110,10 @@ def main():
                 train_time_utils.get_hour_of_day(k)))
 
 
-    model = A2C(sim, 10);
+    model = A2C(sim, 10, 
+            len(geo_utils.lat_grids) * len(geo_utils.lng_grids))
+
+
     model.train()
     sys.exit(0)
 

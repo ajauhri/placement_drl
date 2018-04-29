@@ -58,7 +58,8 @@ class A2C:
                     tf.matmul(actor_l3, actor_weights['out']), 
                     actor_biases['out']))
 
-            self.actor_loss_op = tf.reduce_mean(tf.log(tf.clip_by_value(self.actor_out_layer,1E-15,0.99))*self.actor_values)
+            self.actor_loss_op = tf.reduce_mean(tf.log(tf.clip_by_value(\
+                    self.actor_out_layer,1E-15,0.99))*self.actor_values)
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
                     self.actor_loss_op)
@@ -115,7 +116,8 @@ class A2C:
         print(a, np.sum(a))
         print(c)
         """
-    def _aggregate(self, trajs, rewards, actions, times, states_t, r_t, a_t, t_t, ids_t):
+    def _aggregate(self, trajs, rewards, actions, times, states_t, \
+            r_t, a_t, t_t, ids_t):
         for i in range(len(states_t)):
             if ids_t[i] not in trajs:
                 trajs[ids_t[i]] = []
