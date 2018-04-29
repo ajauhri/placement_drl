@@ -56,6 +56,9 @@ class TimeUtilities:
         return time_bins
 
 class GeoUtilities:
+
+    EARTH_RADIUS = 6371.009;
+
     def __init__(self, lat_min, lat_max, 
             lng_min, lng_max, cell_length_meters):
         self.cell_length_meters = cell_length_meters
@@ -141,3 +144,31 @@ class GeoUtilities:
         c1 = int(n / n_lng_grids)
         return [(self.lat_grids[c1-1] + self.lat_grids[c1]) / 2, 
             (self.lng_grids[c2-1] + self.lng_grids[c2]) / 2]
+
+
+    def orthodromic_dist1d(a, b):
+        lat1, lng1 = math.radians(a[:,0]), math.radians(a[:,1])
+        lat2, lng2 = math.radians(b[0]), math.radians(b[1])
+        
+        sin_lat1, cos_lat1 = math.sin(lat1), math.cos(lat1)
+        sin_lat2, cos_lat2 = math.sin(lat2), math.cos(lat2)
+
+        delta_lng = lng2 - lng1
+        cos_delta_lng, sin_delta_lng = math.cos(delta_lng), math.sin(delta_lng)
+
+        d = math.atan2(math.sqrt((cos_lat2 * sin_delta_lng) ** 2 +
+                                 (cos_lat1 * sin_lat2 -
+                                  sin_lat1 * cos_lat2 * cos_delta_lng) ** 2),
+                       sin_lat1 * sin_lat2 + cos_lat1 * cos_lat2 * cos_delta_lng)
+        return EARTH_RADIUS * d * 1000
+
+    def num_steps(self, n, n_lng_grids,p_n):
+        lng_idx = int(n % n_lng_grids);
+        lat_idx = int(n / n_lng_grids);
+
+        p_lng_idx = int(p_n % n_lng_grids);
+        p_lat_idx = int(p_n / n_lng_grids);
+
+        return np.abs(p_lng_idx - lng_idx) + np.abs(p_lat_idx - lat_idx);
+        
+        
