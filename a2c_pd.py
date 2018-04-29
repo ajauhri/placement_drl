@@ -16,11 +16,7 @@ class A2C:
         self.max_t = max_t
         self.actor_alpha = 0.0001
         self.critic_alpha = 0.0001
-<<<<<<< HEAD
         self.gamma = 0.90
-=======
-        self.gamma = 0.9
->>>>>>> 00deeaca87b5a663648bf4d456a5dad08d37aa07
         self.epsilon = 0.5
         self.n = 5
 
@@ -73,13 +69,8 @@ class A2C:
                     tf.matmul(self.actor_l3, actor_weights['out']), 
                         actor_biases['out']))
 
-<<<<<<< HEAD
             self.actor_loss_op = tf.reduce_mean(tf.multiply(tf.log(tf.clip_by_value(\
                     self.actor_out_layer,1E-15,0.99)),self.actor_values))
-=======
-            self.actor_loss_op = tf.reduce_mean(tf.log(tf.clip_by_value(\
-                    self.actor_out_layer, 1e-15, 0.99))*self.actor_values)
->>>>>>> 00deeaca87b5a663648bf4d456a5dad08d37aa07
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
                     self.actor_loss_op)
