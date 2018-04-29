@@ -3,7 +3,7 @@ import numpy as np
 
 class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
-            dropoff_buckets, episode_duration=20, gamma=0.9, past_t=20):
+            dropoff_buckets, episode_duration=20, gamma=0.9, past_t=5):
         self.X = X
         self.rrs = {}
         self.dropoff_buckets = dropoff_buckets
