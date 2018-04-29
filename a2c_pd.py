@@ -26,6 +26,12 @@ class A2C:
         self.data_for_day = num_bins_in_hour * num_hours_per_day
 
         self.setup_actor_critic()
+    
+    def _add_lat_lng(self, lat, lon, nodes):
+        for node in self.sim.curr_nodes:
+            loc = self.sim.geo_utils.get_centroid_v2(node,self.sim.n_lng_grids)
+            lat.append(loc[0]);
+            lon.append(loc[1]);
 
     def setup_actor_critic(self):
         with tf.Graph().as_default() as actor:
@@ -221,12 +227,11 @@ class A2C:
                 ids_t = self.sim.curr_ids
                 print("ts %d, ids %d" % (t, len(ids_t)))
                 
-                lat = [];
-                lon = [];
-                for node in self.sim.curr_nodes:
-                    loc = self.sim.geo_utils.get_centroid_v2(node,self.sim.n_lng_grids)
-                    lat.append(loc[0]);
-                    lon.append(loc[1]);
+                lat = []
+                lon = []
+                self._add_lat_lng(lat, lon, self.sim.curr_nodes)
+                if t in self.sim.pmr_dropoffs:
+                    self._add_lat_lng(lat, lon, self.sim.pmr_dropoffs[t])
                 imaging_data[t] = (lat,lon);
 
                 # step in the enviornment
