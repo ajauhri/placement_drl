@@ -196,7 +196,7 @@ class A2C:
 #            self.init_animation();
             
             #beginning of an episode run 
-            for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
+            for t in range(self.sim.start_t, self.sim.end_t):
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
                 

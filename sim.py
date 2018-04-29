@@ -207,3 +207,56 @@ class Sim:
                         return r, placmt_node
         if not matched:
             return 0, placmt_node
+
+
+    def _in_rrs_alternative(self, dropoff_node, a, car_id, next_th):
+        matched = False
+        placmt_node = self.get_next_node(dropoff_node, a)
+        #placmt_centroid = self.geo_utils.get_centroid(placmt_node)
+        
+        if placmt_node in self.requests:
+            for i in range(len(self.requests[placmt_node])):
+                if (not self.requests[placmt_node][i].picked) and (\
+                        (self.requests[placmt_node][i].r_t < (self.curr_t + 1) \
+                        and 
+                        self.requests[placmt_node][i].r_t > (self.start_t - \
+                                self.past_t) and
+                        self.requests[placmt_node][i].p_t > (self.curr_t + 1))
+                     or
+                     self.requests[placmt_node][i].r_t == self.curr_t + 1):
+                        self.requests[placmt_node][i].picked = True
+
+                        
+                        
+                        pickup_t = self.requests[placmt_node][i].p_t
+                        dropoff_t = self.requests[placmt_node][i].d_t
+                        drive_t = dropoff_t - pickup_t
+                        self.requests[placmt_node][i].p_t = self.curr_t + 1
+                        
+                        new_dropoff_t = (self.curr_t + 1) + drive_t
+                        if new_dropoff_t < self.end_t:
+                            if new_dropoff_t not in self.pmr_dropoffs:
+                                self.pmr_dropoffs[new_dropoff_t] = []
+                                self.pmr_states[new_dropoff_t] = []
+                                self.pmr_ids[new_dropoff_t] = []
+
+                            #dropoff_centroid = self.geo_utils.get_centroid(
+                            #        self.requests[placmt_node][i].dn)
+                            
+                            # maintain all previously matched rides to be 
+                            # considered for future cars
+                            self.pmr_dropoffs[new_dropoff_t].append(
+                                    self.requests[placmt_node][i].dn)
+                            #self.pmr_states[new_dropoff_t].append(
+                            #        dropoff_centroid + [next_th])
+                            self.pmr_states[new_dropoff_t].append(\
+                                    self.get_state(\
+                                    self.requests[placmt_node][i].dn, next_th))
+                            self.pmr_ids[new_dropoff_t].append(car_id)
+                        
+                        matched = True
+                        r = self.gamma ** ((self.curr_t + 1) - \
+                                self.requests[placmt_node][i].r_t)
+                        return r, placmt_node
+        if not matched:
+            return 0, placmt_node
