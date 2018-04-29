@@ -109,9 +109,10 @@ def main():
             logging.info("Loaded map for time bin %d, hour of day %d" % (k, 
                 train_time_utils.get_hour_of_day(k)))
 
-
-    model = A2C(sim, 10, 
-            len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1)
+            
+        hidden_units = 128;
+        model = A2C(sim, 10, len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1, 
+                    sim.n_actions,hidden_units)
 
 
     model.train()
