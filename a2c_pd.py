@@ -7,7 +7,7 @@ from matplotlib.animation import FuncAnimation
 
 class A2C:
     def __init__(self, sim, n_time_bins, state_dim=3, 
-            action_dim=5, hidden_units=16):
+            action_dim=5, hidden_units=32):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.hidden_units = hidden_units
@@ -206,7 +206,7 @@ class A2C:
 
                 states_t = self.sim.curr_states
                 ids_t = self.sim.curr_ids
-                print("ids " + str(len(ids_t)))
+                print("ts %d, ids %d" % (t, len(ids_t)))
                 
                 lat = [];
                 lon = [];

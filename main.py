@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-#./main.py -c cities.csv -i data/<fname> -t data/<fname> -d
+#./main.py -c cities.csv -i data/<fname> -d
 
 from __future__ import division
 
@@ -28,8 +28,6 @@ def main():
         default="")
     parser.add_argument("-i", "--input", help="path to data file",  
         default="")
-    parser.add_argument("-t", "--test", help="path to test file",  
-        default="")
     parser.add_argument("-d", "--debug", help="debug mode",  
         action="store_const", dest="loglevel", const=logging.DEBUG, 
         default=logging.WARNING)
@@ -43,8 +41,6 @@ def main():
     
     config = pandas.read_csv(args.config, sep=',')
     X = pandas.read_csv(args.input, sep=',', 
-            header=None).values.astype(np.float64)
-    Y = pandas.read_csv(args.test, sep=',', 
             header=None).values.astype(np.float64)
     
     geo_utils = helpers.GeoUtilities(config['lat_min'].iloc[0], 
