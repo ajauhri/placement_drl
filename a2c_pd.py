@@ -59,7 +59,7 @@ class A2C:
                     tf.matmul(actor_l3, actor_weights['out']), 
                     actor_biases['out']))
 
-            self.actor_loss_op = tf.reduce_mean(self.actor_out_layer)
+            self.actor_loss_op = tf.reduce_mean(tf.log(self.actor_out_layer)*self.actor_values)
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
                     self.actor_loss_op)
@@ -267,6 +267,13 @@ class A2C:
                 one_hot_values = np.zeros([len(a_s),self.action_dim]);
                 for j in range(len(a_s)):
                     one_hot_values[j,a_s[j]] = values[j];
+
+                prob_out = self.actor_sess.run(self.actor_out_layer,
+                                               feed_dict={self.actor_states: trajs[car_id]})
+                print prob_out
+                print np.log(prob_out)
+                print np.log(prob_out) * one_hot_values;
+
                 _, c = self.actor_sess.run([self.actor_train_op, self.actor_loss_op], 
                                            feed_dict={self.actor_states: trajs[car_id], 
                                                       self.actor_values: one_hot_values});
@@ -274,7 +281,7 @@ class A2C:
                 temp_r.append(np.sum(r));
 
             print "reward " + str(np.sum(temp_r))
-            print "cost " + str(np.mean(temp_c))
+            print "cost " + str(temp_c)
 
 #            logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
 #                          (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))

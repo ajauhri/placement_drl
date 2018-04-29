@@ -75,7 +75,7 @@ def main():
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
             train_dropoff_buckets)
-    for k in sorted(train_dropoff_buckets.keys())[:10]:
+    for k in sorted(train_dropoff_buckets.keys())[:50]:
         if len(train_dropoff_buckets[k]) and (k+1) in train_pickup_buckets:
             rrs = {}
             
