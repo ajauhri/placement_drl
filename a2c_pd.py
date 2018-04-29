@@ -2,7 +2,6 @@ from __future__ import division
 import tensorflow as tf, numpy as np, sys
 import logging
 import matplotlib.pyplot as plt
-import pandas as pd
 from mpl_toolkits.basemap import Basemap
 
 class A2C:
@@ -144,11 +143,13 @@ class A2C:
             fig = plt.figure(1)
             plt.ion();
             m = Basemap(projection = 'stere', 
-                        llcrnrlat=37.7,urcrnrlat=37.82,
-                        llcrnrlon=-122.53,urcrnrlon=-122.35,
+                        llcrnrlat=37.765,urcrnrlat=37.81,
+                        llcrnrlon=-122.445,urcrnrlon=-122.385,
                         resolution='f',
-                        lat_0 = 37.76,lon_0 = -122.45)
-            m.drawcoastlines()
+                        lat_0 = 37.78,lon_0 = -122.41)
+            m.drawmapboundary(fill_color='aqua')
+            m.fillcontinents(color='#f0f0f0')
+            m.readshapefile("sf_road_shapefile/geo_export_3d11c967-f61d-43d6-9e9a-af12debe14fc","sf_roads");
             plt.xlabel('lon')
             plt.ylabel('lat')
             plt.show()
@@ -187,7 +188,7 @@ class A2C:
                     lon[i] = state[1];
                     i += 1;
                 loc = m(lon,lat)
-                plot_points = plt.scatter(loc[0],loc[1],1,color='r')
+                plot_points = plt.scatter(loc[0],loc[1],1,color='r',zorder=2)
                 plt.draw();
                 plt.pause(0.001);
                 plot_points.remove();
