@@ -143,11 +143,11 @@ class A2C:
             times[ids_t[i]].append(t_t);
 
     def update_animation(self,imaging_data,plot_points, img_idx):
-        old_points = plot_points;
-        old_points.set_color('blue');
-        plt.draw();
-        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
-        img_idx += 1;
+#        old_points = plot_points;
+#        old_points.set_color('blue');
+#        plt.draw();
+#        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
+#        img_idx += 1;
 
         loc = imaging_data[0];
         num_each = imaging_data[1];
@@ -156,9 +156,10 @@ class A2C:
         plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
         img_idx += 1;
 
-        old_points.remove();
-        plt.draw();
-        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
+        plot_points.remove();
+#       old_points.remove();
+#       plt.draw();
+#       plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
         return plot_points;
 
     def create_animation(self,imaging_data, epoch, tstart, tend):
@@ -177,8 +178,8 @@ class A2C:
         plot_points = plt.scatter(0,0,1,'r');
         for t in imaging_data.keys():
             plot_points = self.update_animation(imaging_data[t],plot_points, img_idx)
-            img_idx += 3;
-        plot_points.remove();
+            img_idx += 1;
+#        plot_points.remove();
         plt.draw();
 
         os.system("ffmpeg -r 1 -i movies/img%d.png -vcodec mpeg4 -y movies/sf_"+str(tstart)+"_to_"+str(tend)+"_run_"+str(epoch)+".mp4")
