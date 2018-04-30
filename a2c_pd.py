@@ -69,7 +69,7 @@ class A2C:
                     tf.matmul(self.actor_l3, actor_weights['out']), 
                         actor_biases['out']))
 
-            self.actor_loss_op = tf.reduce_mean(tf.multiply(tf.log(tf.clip_by_value(\
+            self.actor_loss_op = -tf.reduce_mean(tf.multiply(tf.log(tf.clip_by_value(\
                     self.actor_out_layer,1E-15,0.99)),self.actor_values))
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
@@ -205,7 +205,6 @@ class A2C:
             for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
-                print(p_t) 
                 a_t = []
                 for j in range(len(p_t)):
                     a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
@@ -224,7 +223,10 @@ class A2C:
 
                 states_t = self.sim.curr_states
                 ids_t = self.sim.curr_ids
-                print("ts %d, ids %d" % (t, len(ids_t)))
+                num_ids = len(ids_t);
+                if (t in self.sim.pmr_ids):
+                    num_ids += len(self.sim.pmr_ids);
+                print("ts %d, ids %d" % (t, num_ids))
                 
                 lat = []
                 lon = []
@@ -254,7 +256,6 @@ class A2C:
                             t,
                             self.sim.pmr_ids[t])
             #end of an episode run and results aggregated
-           
             #self.create_animation(imaging_data);
 
             for car_id, r in rewards.items():
@@ -302,7 +303,7 @@ class A2C:
                         cum_r += r[i+j] * (self.gamma**cum_td[j]);
                     R[i] = cum_r
                 
-                values = np.abs(R - V_omega);
+                values = (R - V_omega);
                 a_s = actions[car_id];
                 one_hot_values = np.zeros([len(a_s),self.action_dim]);
                 
