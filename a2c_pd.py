@@ -185,7 +185,7 @@ class A2C:
 
 
     def train(self):
-        max_epochs = 100
+        max_epochs = 3
         rewards_test = []
         costs = []
         for epoch in range(max_epochs):
@@ -202,7 +202,7 @@ class A2C:
 #            self.init_animation();
             
             #beginning of an episode run 
-            for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
+            for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
                 a_t = []
@@ -323,8 +323,8 @@ class A2C:
 #           logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
 #           (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
             costs.append(np.mean(temp_c))
-            rewards_test.append(np.sum(temp_r));
-#           rewards_test.append(self.test())
+#           rewards_test.append(np.sum(temp_r));
+            rewards_test.append(self.test())
 
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
@@ -338,9 +338,9 @@ class A2C:
 
 
     def test(self):
-
+        max_epochs = 3;
         for epoch in range(max_epochs):
-            start_t = 20
+            start_t = 7*24*60/3+20 # days * hours * minutes / (minutes / segment) + start_t (training)
             self.sim.reset(start_t)
 
             trajs = {}
@@ -382,9 +382,7 @@ class A2C:
 #                    self._add_lat_lng(lat, lon, self.sim.pmr_dropoffs[t])
 #                imaging_data[t] = (lat,lon);
 
-                # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
-
                 self._aggregate(trajs, rewards, actions, times, states_t, 
                         r_t, a_t, t, ids_t)
 
