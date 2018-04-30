@@ -4,7 +4,8 @@ import logging
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from matplotlib.animation import FuncAnimation
- 
+import os 
+
 class A2C:
     def __init__(self, sim, n_time_bins, state_dim=3, 
             action_dim=5, hidden_units=32, max_t=100):
@@ -141,18 +142,30 @@ class A2C:
             actions[ids_t[i]].append(a_t[i])
             times[ids_t[i]].append(t_t);
 
-    def update_animation(self,imaging_data,plot_points):
+    def update_animation(self,imaging_data,plot_points, img_idx):
         old_points = plot_points;
         old_points.set_color('blue');
+        plt.draw();
+        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
+        img_idx += 1;
+
         loc = imaging_data[0];
         num_each = imaging_data[1];
         plot_points = plt.scatter(loc[0],loc[1],num_each,color='r',zorder=4);
         plt.draw();
-        plt.pause(1);
+        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
+        img_idx += 1;
+
         old_points.remove();
+        plt.draw();
+        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
         return plot_points;
 
-    def create_animation(self,imaging_data):
+    def create_animation(self,imaging_data, epoch, tstart, tend):
+        img_idx = 0;
+        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
+        img_idx += 1;
+
         for t in imaging_data.keys():
             lat = imaging_data[t][0]
             lon = imaging_data[t][1]
@@ -161,11 +174,14 @@ class A2C:
             num_each = [dst.count(i) for i in dst];
             imaging_data[t] = (loc,num_each);
         
-        for i in range(10):
-            plot_points = plt.scatter(0,0,1,'r');
-            for t in imaging_data.keys():
-                plot_points = self.update_animation(imaging_data[t],plot_points)
-            plot_points.remove();
+        plot_points = plt.scatter(0,0,1,'r');
+        for t in imaging_data.keys():
+            plot_points = self.update_animation(imaging_data[t],plot_points, img_idx)
+            img_idx += 3;
+        plot_points.remove();
+        plt.draw();
+
+        os.system("ffmpeg -r 1 -i movies/img%d.png -vcodec mpeg4 -y movies/sf_"+str(tstart)+"_to_"+str(tend)+"_run_"+str(epoch)+".mp4")
         
     def init_animation(self):
         self.fig = plt.figure(1)
@@ -181,7 +197,7 @@ class A2C:
         plt.title("Downtown San Francisco");
         plt.xlabel("East-West");
         plt.ylabel("North-South");
-        plt.show();
+        plt.draw();
 
 
     def train(self):
@@ -199,10 +215,10 @@ class A2C:
             times = {}
             imaging_data = {}
 
-#            self.init_animation();
+            self.init_animation();
             
             #beginning of an episode run 
-            for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
+            for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
                 a_t = []
@@ -256,7 +272,7 @@ class A2C:
                             t,
                             self.sim.pmr_ids[t])
             #end of an episode run and results aggregated
-            #self.create_animation(imaging_data);
+            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
             for car_id, r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,
@@ -323,8 +339,8 @@ class A2C:
 #           logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
 #           (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
             costs.append(np.mean(temp_c))
-#           rewards_test.append(np.sum(temp_r));
-            rewards_test.append(self.test())
+            rewards_test.append(np.sum(temp_r));
+#            rewards_test.append(self.test())
 
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
