@@ -14,8 +14,8 @@ class A2C:
         self.sim = sim
         self.n_time_bins = n_time_bins
         self.max_t = max_t
-        self.actor_alpha = 0.0001
-        self.critic_alpha = 0.0001
+        self.actor_alpha = 0.001
+        self.critic_alpha = 0.001
         self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 5
@@ -202,7 +202,7 @@ class A2C:
 #            self.init_animation();
             
             #beginning of an episode run 
-            for t in range(self.sim.start_t, self.sim.start_t+2): #self.sim.end_t
+            for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.curr_states})
                 a_t = []
@@ -338,26 +338,62 @@ class A2C:
 
 
     def test(self):
-        self.sim.start_test()
-        tot_r = 0
-        n_dropoffs = 0
-        
-        for epoch in range(self.n_time_bins)[:100]:
-            if epoch in self.sim.test_dropoff_maps and \
-                    len(self.sim.test_dropoff_maps) > 1:
-                states = []
-                nodes = []
-                for n in self.sim.test_dropoff_maps[epoch].keys():
-                    states.append(self.sim.get_state_rep(n, epoch))
-                    nodes.append(n)
-                    n_dropoffs += self.sim.test_dropoff_maps[epoch][n]
-                states = np.array(states)
-                q = self.sess.run(self.out_layer, feed_dict={self.X: states})
-                a = np.argmax(q, axis=1)
-                for i in range(len(states)):
-                    _, r = self.sim.step_test(nodes[i], epoch, a[i])
-                    tot_r += r
-        logging.debug('test: test reward %d, n_dropoffs %d' \
-                % (tot_r, n_dropoffs))
-        self.sim.reset_test()
-        return tot_r
+
+        for epoch in range(max_epochs):
+            start_t = 20
+            self.sim.reset(start_t)
+
+            trajs = {}
+            rewards = {}
+            actions = {}
+            times = {}
+            imaging_data = {}
+
+            for t in range(self.sim.start_t, self.sim.end_t):
+                p_t = self.actor_sess.run(self.actor_out_layer,
+                        feed_dict={self.actor_states: self.sim.curr_states})
+                a_t = []
+
+                for j in range(len(p_t)):
+                    a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
+                    a_t.append(a)
+                pmr_a_t = []
+                if t in self.sim.pmr_states:
+                    pmr_rides = len(self.sim.pmr_states[t])
+                    pmr_t = self.actor_sess.run(self.actor_out_layer, 
+                            feed_dict={\
+                                    self.actor_states: self.sim.pmr_states[t]})
+                    
+                    for j in range(len(pmr_t)):
+                        a = np.random.choice(self.action_dim, 1, p=pmr_t[j])[0]
+                        pmr_a_t.append(a)
+
+                states_t = self.sim.curr_states
+                ids_t = self.sim.curr_ids
+                num_ids = len(ids_t);
+                if (t in self.sim.pmr_ids):
+                    num_ids += len(self.sim.pmr_ids);
+                print("ts %d, ids %d" % (t, num_ids))
+                
+#                lat = []
+#                lon = []
+#                self._add_lat_lng(lat, lon, self.sim.curr_nodes)
+#                if t in self.sim.pmr_dropoffs:
+#                    self._add_lat_lng(lat, lon, self.sim.pmr_dropoffs[t])
+#                imaging_data[t] = (lat,lon);
+
+                # step in the enviornment
+                r_t = self.sim.step(a_t, pmr_a_t)
+
+                self._aggregate(trajs, rewards, actions, times, states_t, 
+                        r_t, a_t, t, ids_t)
+
+                if t in self.sim.pmr_ids:
+                    self._aggregate(trajs, rewards, actions, times,
+                            self.sim.pmr_states[t],
+                            r_t,
+                            pmr_a_t,
+                            t,
+                            self.sim.pmr_ids[t])
+
+        return rewards
