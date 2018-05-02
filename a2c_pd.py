@@ -8,13 +8,12 @@ import os
 
 class A2C:
     def __init__(self, sim, n_time_bins, state_dim=3, 
-            action_dim=5, hidden_units=32, max_t=100):
+            action_dim=5, hidden_units=32):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.hidden_units = hidden_units
         self.sim = sim
         self.n_time_bins = n_time_bins
-        self.max_t = max_t
         self.actor_alpha = 0.001
         self.critic_alpha = 0.001
         self.gamma = 0.90
@@ -202,12 +201,11 @@ class A2C:
 
 
     def train(self):
-        max_epochs = 3
+        max_epochs = 30
         rewards_test = []
         costs = []
         for epoch in range(max_epochs):
-            start_t = 20#np.random.randint(self.sim.past_t, 
-                    #self.max_t - self.sim.episode_duration)
+            start_t = np.random.choice([20, 500, 980], 1)[0] 
             self.sim.reset(start_t)
 
             trajs = {}
@@ -229,13 +227,13 @@ class A2C:
                 # obtain actions for previously (p) matched (m) rides (r) 
                 pmr_a_t = []
                 if t in self.sim.pmr_states:
-                    pmr_rides = len(self.sim.pmr_states[t])
-                    pmr_t = self.actor_sess.run(self.actor_out_layer, 
+                    pmr_p_t = self.actor_sess.run(self.actor_out_layer, 
                             feed_dict={\
                                     self.actor_states: self.sim.pmr_states[t]})
                     
-                    for j in range(len(pmr_t)):
-                        a = np.random.choice(self.action_dim, 1, p=pmr_t[j])[0]
+                    for j in range(len(pmr_p_t)):
+                        a = np.random.choice(self.action_dim, 
+                                1, p=pmr_p_t[j])[0]
                         pmr_a_t.append(a)
 
                 states_t = self.sim.curr_states
@@ -337,12 +335,10 @@ class A2C:
             print("reward " + str(np.sum(temp_r)))
             print("cost " + str(np.mean(temp_c)))
 
-#           logging.debug("train: epoch %d, time hour %d, cost %.4f" % 
-#           (epoch, self.sim.time_utils.get_hour_of_day(epoch), cost))
             costs.append(np.mean(temp_c))
             rewards_test.append(np.sum(temp_r));
-#            rewards_test.append(self.test())
-
+            test_rewards = self.test()
+            print('test rewards', test_rewards)
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
         ax1.plot(costs, color='r', linewidth=1)
@@ -353,62 +349,45 @@ class A2C:
         plt.ylabel('reward')
         plt.show()
 
-
     def test(self):
-        max_epochs = 3;
-        for epoch in range(max_epochs):
-            start_t = 7*24*60/3+20 # days * hours * minutes / (minutes / segment) + start_t (training)
-            self.sim.reset(start_t)
+        start_t = 1460
+        self.sim.reset(start_t)
+        """
+        trajs = {}
+        rewards = {}
+        actions = {}
+        times = {}
+        imaging_data = {}
+        """
+        rewards = []
 
-            trajs = {}
-            rewards = {}
-            actions = {}
-            times = {}
-            imaging_data = {}
-
-            for t in range(self.sim.start_t, self.sim.end_t):
-                p_t = self.actor_sess.run(self.actor_out_layer,
-                        feed_dict={self.actor_states: self.sim.curr_states})
-                a_t = []
-
-                for j in range(len(p_t)):
-                    a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
-                    a_t.append(a)
-                pmr_a_t = []
-                if t in self.sim.pmr_states:
-                    pmr_rides = len(self.sim.pmr_states[t])
-                    pmr_t = self.actor_sess.run(self.actor_out_layer, 
-                            feed_dict={\
-                                    self.actor_states: self.sim.pmr_states[t]})
-                    
-                    for j in range(len(pmr_t)):
-                        a = np.random.choice(self.action_dim, 1, p=pmr_t[j])[0]
-                        pmr_a_t.append(a)
-
-                states_t = self.sim.curr_states
-                ids_t = self.sim.curr_ids
-                num_ids = len(ids_t);
-                if (t in self.sim.pmr_ids):
-                    num_ids += len(self.sim.pmr_ids);
-                print("ts %d, ids %d" % (t, num_ids))
+        for t in range(self.sim.start_t, self.sim.end_t):
+            p_t = self.actor_sess.run(self.actor_out_layer,
+                    feed_dict={self.actor_states: self.sim.curr_states})
+            
+            a_t = []
+            for j in range(len(p_t)):
+                a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
+                a_t.append(a)
+            
+            pmr_a_t = []
+            if t in self.sim.pmr_states:
+                pmr_p_t = self.actor_sess.run(self.actor_out_layer, 
+                        feed_dict={\
+                                self.actor_states: self.sim.pmr_states[t]})
                 
-#                lat = []
-#                lon = []
-#                self._add_lat_lng(lat, lon, self.sim.curr_nodes)
-#                if t in self.sim.pmr_dropoffs:
-#                    self._add_lat_lng(lat, lon, self.sim.pmr_dropoffs[t])
-#                imaging_data[t] = (lat,lon);
+                for j in range(len(pmr_p_t)):
+                    a = np.random.choice(self.action_dim,
+                            1, p=pmr_p_t[j])[0]
+                    pmr_a_t.append(a)
 
-                r_t = self.sim.step(a_t, pmr_a_t)
-                self._aggregate(trajs, rewards, actions, times, states_t, 
-                        r_t, a_t, t, ids_t)
-
-                if t in self.sim.pmr_ids:
-                    self._aggregate(trajs, rewards, actions, times,
-                            self.sim.pmr_states[t],
-                            r_t,
-                            pmr_a_t,
-                            t,
-                            self.sim.pmr_ids[t])
-
-        return rewards
+            states_t = self.sim.curr_states
+            ids_t = self.sim.curr_ids
+            num_ids = len(ids_t);
+            if (t in self.sim.pmr_ids):
+                num_ids += len(self.sim.pmr_ids);
+            print("ts %d, ids %d" % (t, num_ids))
+            
+            r_t = self.sim.step(a_t, pmr_a_t)
+            rewards.append(np.sum(r_t))
+        return np.sum(rewards)

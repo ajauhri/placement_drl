@@ -74,34 +74,37 @@ def main():
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
             train_dropoff_buckets)
-    for k in sorted(train_dropoff_buckets.keys())[:max_t]:
-        if len(train_dropoff_buckets[k]) and (k+1) in train_pickup_buckets:
-            rrs = {}
-            
-            for i in train_pickup_buckets[k+1]:
-                dropoff_node, d_lat_idx, d_lon_idx = \
-                        geo_utils.get_node(X[i, 5:7])
-                pickup_node, p_lat_idx, p_lon_idx = \
-                        geo_utils.get_node(X[i, 2:4])
 
-                if (d_lat_idx > 0 and d_lon_idx > 0) or \
-                    (p_lat_idx > 0 and p_lon_idx > 0):
-                     
-                    d_t = train_time_utils.get_bucket(X[i, 4])
-                    p_t = train_time_utils.get_bucket(X[i, 1])
-                    if pickup_node not in sim.rrs:
-                        sim.rrs[pickup_node] = []
-                    sim.rrs[pickup_node].append(helpers.rr(i, k+1, p_t, d_t, 
-                        dropoff_node, d_lat_idx, d_lon_idx, 
-                        pickup_node, p_lat_idx, p_lon_idx))
+    #for k in sorted(train_dropoff_buckets.keys())[:max_t]:
+    for i in range(20, 480*4, 480):
+        for k in range(i, i+20):
+            if len(train_dropoff_buckets[k]) and (k+1) in train_pickup_buckets:
+                rrs = {}
+                
+                for i in train_pickup_buckets[k+1]:
+                    dropoff_node, d_lat_idx, d_lon_idx = \
+                            geo_utils.get_node(X[i, 5:7])
+                    pickup_node, p_lat_idx, p_lon_idx = \
+                            geo_utils.get_node(X[i, 2:4])
+
+                    if (d_lat_idx > 0 and d_lon_idx > 0) or \
+                        (p_lat_idx > 0 and p_lon_idx > 0):
+                         
+                        d_t = train_time_utils.get_bucket(X[i, 4])
+                        p_t = train_time_utils.get_bucket(X[i, 1])
+                        if pickup_node not in sim.rrs:
+                            sim.rrs[pickup_node] = []
+                        sim.rrs[pickup_node].append(helpers.rr(i, k+1, p_t, d_t, 
+                            dropoff_node, d_lat_idx, d_lon_idx, 
+                            pickup_node, p_lat_idx, p_lon_idx))
+                
+                logging.info("Loaded map for time bin %d, hour of day %d" % (k, 
+                    train_time_utils.get_hour_of_day(k)))
             
-            logging.info("Loaded map for time bin %d, hour of day %d" % (k, 
-                train_time_utils.get_hour_of_day(k)))
-        
             
     hidden_units = 128;
     model = A2C(sim, 10, len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1, 
-            sim.n_actions, hidden_units, max_t)
+            sim.n_actions, hidden_units)
    # model = Baseline(sim)
    # model.run()
     model.train()
