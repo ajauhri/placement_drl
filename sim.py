@@ -82,9 +82,7 @@ class Sim:
 
             if (d_lat_idx > 0 and d_lon_idx > 0):
 
-                #centroid = self.geo_utils.get_centroid(dropoff_node) 
                 self.curr_states.append(self.get_state(dropoff_node, th))
-                #self.curr_states.append(centroid + [th])
                 self.curr_nodes.append(dropoff_node)
                 self.curr_ids.append(self.car_id_counter)
                 self.car_id_counter += 1
@@ -116,7 +114,6 @@ class Sim:
             if r == 0:
                 next_nodes.append(next_node)
                 next_states.append(self.get_state(next_node, next_th))
-                #next_states.append(next_centroid + [next_th])
                 next_ids.append(self.curr_ids[i])
         
         #2 check dropoffs from previous matched requets if can be matched further
@@ -132,7 +129,6 @@ class Sim:
                 if r == 0:
                     next_nodes.append(next_node)
                     next_states.append(self.get_state(next_node, next_th))
-                    #next_states.append(next_centroid + [next_th])
                     next_ids.append(self.pmr_ids[self.curr_t][i])
         
         #3 add dropoff vehicles from before beginning of episode
@@ -146,10 +142,8 @@ class Sim:
                     p_t = self.time_utils.get_bucket(self.X[idx, 1])
                     if p_t <= self.start_t:
                         self.car_id_counter += 1
-                        #centroid = self.geo_utils.get_centroid(dropoff_node)
                         next_nodes.append(dropoff_node)
                         next_states.append(self.get_state(dropoff_node, next_th))
-                        #next_states.append(centroid + [next_th])
                         next_ids.append(self.car_id_counter)
             
         self.curr_states = next_states
@@ -174,6 +168,7 @@ class Sim:
                         self.requests[placmt_node][i].p_t > (self.curr_t + 1))
                      or
                      self.requests[placmt_node][i].r_t == self.curr_t + 1):
+
                         self.requests[placmt_node][i].picked = True
                         
                         pickup_t = self.requests[placmt_node][i].p_t
@@ -188,15 +183,11 @@ class Sim:
                                 self.pmr_states[new_dropoff_t] = []
                                 self.pmr_ids[new_dropoff_t] = []
 
-                            #dropoff_centroid = self.geo_utils.get_centroid(
-                            #        self.requests[placmt_node][i].dn)
                             
                             # maintain all previously matched rides to be 
                             # considered for future cars
                             self.pmr_dropoffs[new_dropoff_t].append(
                                     self.requests[placmt_node][i].dn)
-                            #self.pmr_states[new_dropoff_t].append(
-                            #        dropoff_centroid + [next_th])
                             self.pmr_states[new_dropoff_t].append(\
                                     self.get_state(\
                                     self.requests[placmt_node][i].dn, next_th))
@@ -213,7 +204,6 @@ class Sim:
     def get_rrs_alternative(self, car_id, next_th):
         matched = False
         placmt_node = self.get_next_node(dropoff_node, a)
-        #placmt_centroid = self.geo_utils.get_centroid(placmt_node)
         
         for node in self.requests.keys():
             if (not self.requests[node][i].picked) and (\
@@ -240,8 +230,6 @@ class Sim:
                         # considered for future cars
                         self.pmr_dropoffs[new_dropoff_t].append(
                             self.requests[placmt_node][i].dn)
-                            #self.pmr_states[new_dropoff_t].append(
-                            #        dropoff_centroid + [next_th])
                         self.pmr_states[new_dropoff_t].append(\
                             self.get_state(\
                                 self.requests[placmt_node][i].dn, next_th))
