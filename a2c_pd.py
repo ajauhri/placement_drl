@@ -7,8 +7,8 @@ from matplotlib.animation import FuncAnimation
 import os 
 
 class A2C:
-    def __init__(self, sim, n_time_bins, state_dim=3, 
-            action_dim=5, hidden_units=32):
+    def __init__(self, sim, n_time_bins, train_windows, test_window,
+            state_dim, action_dim, hidden_units=32):
         self.state_dim = state_dim
         self.action_dim = action_dim
         self.hidden_units = hidden_units
@@ -19,6 +19,8 @@ class A2C:
         self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 5
+        self.train_windows = train_windows
+        self.test_window = test_window
 
         num_mins_per_bin = 2
         num_bins_in_hour = 60 / num_mins_per_bin
@@ -28,7 +30,7 @@ class A2C:
         self.setup_actor_critic()
     
     def _add_lat_lng(self, lat, lon, nodes):
-        for node in self.sim.curr_nodes:
+        for node in nodes:
             loc = self.sim.geo_utils.get_centroid_v2(node,self.sim.n_lng_grids)
             lat.append(loc[0]);
             lon.append(loc[1]);
@@ -120,14 +122,6 @@ class A2C:
         self.critic_sess = tf.Session(graph=critic)
         self.critic_sess.run(init)
         
-        """
-        a = self.actor_sess.run(actor_out_layer,
-                        feed_dict={actor_states: [[4, 5, 4]]})
-        c = self.critic_sess.run(critic_out_layer,
-                        feed_dict={critic_states: [[4, 5, 4]]})
-        print(a, np.sum(a))
-        print(c)
-        """
     def _aggregate(self, trajs, rewards, actions, times, states_t, \
             r_t, a_t, t_t, ids_t):
         for i in range(len(states_t)):
@@ -206,7 +200,7 @@ class A2C:
         rewards_test = []
         costs = []
         for epoch in range(max_epochs):
-            start_t = np.random.choice([20, 500, 980], 1)[0] 
+            start_t = np.random.choice(self.train_windows, 1)[0] 
             self.sim.reset(start_t)
 
             trajs = {}
@@ -215,7 +209,7 @@ class A2C:
             times = {}
             imaging_data = {}
 
-            self.init_animation();
+            #self.init_animation();
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
@@ -241,7 +235,7 @@ class A2C:
                 ids_t = self.sim.curr_ids
                 num_ids = len(ids_t);
                 if (t in self.sim.pmr_ids):
-                    num_ids += len(self.sim.pmr_ids);
+                    num_ids += len(self.sim.pmr_ids[t]);
                 print("ts %d, ids %d" % (t, num_ids))
                 
                 lat_c = []
@@ -249,12 +243,15 @@ class A2C:
                 self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes)
                 if t in self.sim.pmr_dropoffs:
                     self._add_lat_lng(lat_c, lon_c, self.sim.pmr_dropoffs[t])
+
                 lat_r = []
                 lon_r = []
                 self._add_lat_lng(lat_r, lon_r, self.sim.curr_nodes)
                 if t in self.sim.pmr_dropoffs:
-                    self._add_lat_lng(lat_r, lon_r, self.sim.pmr_dropoffs[t])
+                           self._add_lat_lng(lat_r, lon_r, self.sim.pmr_dropoffs[t])
+
                 imaging_data[t] = (lat_c,lon_c,lat_r,lon_r);
+
 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
@@ -264,20 +261,19 @@ class A2C:
                 assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
                 assert (len(ids_t) + len(pmr_a_t)) == len(r_t)  
                 
-#                print('iter %d' % t)
                 
                 self._aggregate(trajs, rewards, actions, times, states_t, 
                         r_t, a_t, t, ids_t)
-
+                print(len(r_t[len(states_t):]))
                 if t in self.sim.pmr_ids:
                     self._aggregate(trajs, rewards, actions, times,
                             self.sim.pmr_states[t],
-                            r_t,
+                            r_t[len(states_t):],
                             pmr_a_t,
                             t,
                             self.sim.pmr_ids[t])
             #end of an episode run and results aggregated
-            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
+            #self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
             for car_id, r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,
@@ -356,7 +352,7 @@ class A2C:
         plt.show()
 
     def test(self):
-        start_t = 1460
+        start_t = self.test_window
         self.sim.reset(start_t)
         """
         trajs = {}
@@ -391,7 +387,7 @@ class A2C:
             ids_t = self.sim.curr_ids
             num_ids = len(ids_t);
             if (t in self.sim.pmr_ids):
-                num_ids += len(self.sim.pmr_ids);
+                num_ids += len(self.sim.pmr_ids[t]);
             print("ts %d, ids %d" % (t, num_ids))
             
             r_t = self.sim.step(a_t, pmr_a_t)
