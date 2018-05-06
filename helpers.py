@@ -92,58 +92,40 @@ class GeoUtilities:
         lng_steps = int(abs(self.lng_max - self.lng_min) 
             * self.longitude_meters / self.cell_length_meters)
         self.lng_grids = np.linspace(self.lng_min, self.lng_max, lng_steps)
-        #print(len(self.lat_grids), len(self.lng_grids))
 
     def get_node(self, p):
         lat_cell = np.argmax(p[0] < self.lat_grids) \
             if self._within_boundary(
                 p[0], self.lat_grids[0], self.lat_grids[-1]) \
-            else 0
+            else -1
         
         lng_cell = np.argmax(p[1] < self.lng_grids) \
             if self._within_boundary(
                 p[1], self.lng_grids[0], self.lng_grids[-1]) \
-            else 0
+            else -1
         
-        node = (lat_cell - 1) * len(self.lng_grids) + \
+        node = (lat_cell - 1) * (len(self.lng_grids) - 1) + \
                 (lng_cell - 1)
-
+        
+        if lat_cell < 0 or lng_cell < 0:
+            return -1, -1, -1
+        
         return node, lat_cell - 1, lng_cell - 1
 
         
-    """
-    def get_node(self, p):
-        lat_cell = np.argmax(p[0] < self.lat_grids) \
-            if self._within_boundary(
-                p[0], self.lat_grids[0], self.lat_grids[-1]) \
-            else 1 if not self._gte_lb(p[0], self.lat_grids[0]) \
-                else len(self.lat_grids) - 1
-        
-        lng_cell = np.argmax(p[1] < self.lng_grids) \
-            if self._within_boundary(
-                p[1], self.lng_grids[0], self.lng_grids[-1]) \
-            else 1 if not self._gte_lb(p[1], self.lng_grids[0]) \
-                else len(self.lng_grids) - 1
-        
-        node = (lat_cell - 1) * len(self.lng_grids) + \
-                (lng_cell - 1)
-
-        return node, lat_cell - 1, lng_cell - 1
-    """
-
     def get_centroid(self, n):
         c2 = n % len(self.lng_grids) + 1
         c1 = int((n - c2 + 1) / len(self.lng_grids)) + 1
-        #print(c1, c2)
-        #print(len(self.lng_grids))
+        print(c1, c2)
+        print('t', len(self.lng_grids), len(self.lat_grids))
         return [(self.lat_grids[c1 - 1] + self.lat_grids[c1]) / 2, 
             (self.lng_grids[c2 - 1] + self.lng_grids[c2]) / 2]
 
     def get_centroid_v2(self, n, n_lng_grids):
-        c2 = int(n % n_lng_grids)
-        c1 = int(n / n_lng_grids)
-        return [(self.lat_grids[c1-1] + self.lat_grids[c1]) / 2, 
-            (self.lng_grids[c2-1] + self.lng_grids[c2]) / 2]
+        c2 = int(n % (n_lng_grids - 1))
+        c1 = int(n / (n_lng_grids - 1))
+        return [(self.lat_grids[c1+1] + self.lat_grids[c1]) / 2, 
+            (self.lng_grids[c2+1] + self.lng_grids[c2]) / 2]
 
 
     def orthodromic_dist1d(a, b):

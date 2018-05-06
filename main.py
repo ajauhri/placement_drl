@@ -16,7 +16,7 @@ import pandas
 import logging
 import numpy as np
 from collections import Counter 
-import cPickle
+import _pickle as cPickle
 
 time_bin_width_mins = 3
 cell_length_meters = 100
@@ -78,11 +78,10 @@ def main():
     #max_t = 40
     #for k in sorted(train_dropoff_buckets.keys())[:max_t]:
 
-    all_windows = range(480*3 + 20, 480*7, 480)
-    train_windows = range(480*3 + 20, 480*6, 480)
-    test_window = 480*6 + 20
-
-    '''
+    all_windows = [20, 1940, 2420, 2900]
+    train_windows = range(480*4 + 20, 480*7, 480)
+    test_window = 20
+    """
     for i in all_windows:
         for r_t in range(i, i+20):
             if r_t in train_pickup_buckets:
@@ -91,9 +90,8 @@ def main():
                             geo_utils.get_node(X[i, 5:7])
                     pickup_node, p_lat_idx, p_lon_idx = \
                             geo_utils.get_node(X[i, 2:4])
-
-                    if (d_lat_idx > 0 and d_lon_idx > 0) or \
-                        (p_lat_idx > 0 and p_lon_idx > 0):
+                    if (d_lat_idx >= 0 and d_lon_idx >= 0) or \
+                        (p_lat_idx >= 0 and p_lon_idx >= 0):
                          
                         d_t = train_time_utils.get_bucket(X[i, 4])
                         p_t = train_time_utils.get_bucket(X[i, 1])
@@ -109,30 +107,20 @@ def main():
     with open(r"rrs.pickle", "wb") as out_file:
         cPickle.dump(sim.rrs, out_file)
     sys.exit(0)
-    '''
-    
+    """
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
 
     hidden_units = 128;
-#    model = A2C(sim, 10, 
-#                train_windows, test_window,
-#                len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1,
-#                sim.n_actions, hidden_units)
-#    model.train()
-    model = Baseline(sim)
-    model.run()
+    model = A2C(sim, 10, 
+                train_windows, test_window,
+                len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1,
+                sim.n_actions, hidden_units)
+    model.train()
+    #model = Baseline(sim)
+    #model.run()
     sys.exit(0)
 
-    """ 
-    state_dim = 5;
-    action_dim = 4;
-    hidden_units = 30;
-    sim = 1;
-    n_time_bins = 100
-    model = A2C(state_dim, action_dim, hidden_units, sim, n_time_bins);
-    model.train();
-    """
 
 
     """

@@ -58,7 +58,7 @@ class Baseline:
                 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
-                print r_t
+                print(r_t)
 
                 # len of r_t should equal to current states (states_t) and 
                 # states obtained from pmr
