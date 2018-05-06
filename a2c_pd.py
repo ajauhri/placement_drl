@@ -162,9 +162,9 @@ class A2C:
             lat_c = imaging_data[t][0]
             lon_c = imaging_data[t][1]
             loc_c = self.m(lon_c,lat_c)
-            apb = loc_c[0] + loc_c[1];
-            dst = 0.5*apb*(apb+1)+loc_c[1];
-            num_cars = [dst.count(i) for i in dst];
+            apb = np.array(loc_c[0]) + np.array(loc_c[1])
+            dst = 0.5*apb*(apb+1) + np.array(loc_c[1])
+            num_cars = [dst.tolist().count(i) for i in dst];
             """
             lat_r = imaging_data[t][0]
             lon_r = imaging_data[t][1]
