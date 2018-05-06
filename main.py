@@ -16,7 +16,7 @@ import pandas
 import logging
 import numpy as np
 from collections import Counter 
-import _pickle as cPickle
+import cPickle
 
 time_bin_width_mins = 3
 cell_length_meters = 100
@@ -81,7 +81,8 @@ def main():
     all_windows = range(480*3 + 20, 480*7, 480)
     train_windows = range(480*3 + 20, 480*6, 480)
     test_window = 480*6 + 20
-    """
+
+    '''
     for i in all_windows:
         for r_t in range(i, i+20):
             if r_t in train_pickup_buckets:
@@ -108,19 +109,19 @@ def main():
     with open(r"rrs.pickle", "wb") as out_file:
         cPickle.dump(sim.rrs, out_file)
     sys.exit(0)
-    """
+    '''
     
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
 
     hidden_units = 128;
-    model = A2C(sim, 10, 
-            train_windows, test_window,
-            len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1,
-            sim.n_actions, hidden_units)
-    #model = Baseline(sim)
-    #model.run()
-    model.train()
+#    model = A2C(sim, 10, 
+#                train_windows, test_window,
+#                len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1,
+#                sim.n_actions, hidden_units)
+#    model.train()
+    model = Baseline(sim)
+    model.run()
     sys.exit(0)
 
     """ 

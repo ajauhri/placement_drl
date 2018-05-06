@@ -161,14 +161,14 @@ class A2C:
             lon_c = imaging_data[t][1]
             loc_c = self.m(lon_c,lat_c)
             apb = loc_c[0] + loc_c[1];
-            dst = 0.5*(apb*(apb+1)+loc_c[1];
+            dst = 0.5*apb*(apb+1)+loc_c[1];
             num_cars = [dst.count(i) for i in dst];
 
             lat_r = imaging_data[t][0]
             lon_r = imaging_data[t][1]
             loc_r = self.m(lon_r,lat_r)
             apb = loc_r[0] + loc_r[1];
-            dst = 0.5*(apb*(apb+1)+loc_r[1];
+            dst = 0.5*apb*(apb+1)+loc_r[1];
             num_reqs = [dst.count(i) for i in dst];
 
             plot_data[t] = (loc_c,num_cars,loc_r,num_reqs);
@@ -197,6 +197,7 @@ class A2C:
 
     def train(self):
         max_epochs = 30
+        rewards_train = []
         rewards_test = []
         costs = []
         for epoch in range(max_epochs):
@@ -238,19 +239,19 @@ class A2C:
                     num_ids += len(self.sim.pmr_ids[t]);
                 print("ts %d, ids %d" % (t, num_ids))
                 
-                lat_c = []
-                lon_c = []
-                self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes)
-                if t in self.sim.pmr_dropoffs:
-                    self._add_lat_lng(lat_c, lon_c, self.sim.pmr_dropoffs[t])
+#                lat_c = []
+#                lon_c = []
+#                self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes)
+#                if t in self.sim.pmr_dropoffs:
+#                    self._add_lat_lng(lat_c, lon_c, self.sim.pmr_dropoffs[t])
 
-                lat_r = []
-                lon_r = []
-                self._add_lat_lng(lat_r, lon_r, self.sim.curr_nodes)
-                if t in self.sim.pmr_dropoffs:
-                           self._add_lat_lng(lat_r, lon_r, self.sim.pmr_dropoffs[t])
+#                lat_r = []
+#                lon_r = []
+#                self._add_lat_lng(lat_r, lon_r, self.sim.curr_nodes)
+#                if t in self.sim.pmr_dropoffs:
+#                           self._add_lat_lng(lat_r, lon_r, self.sim.pmr_dropoffs[t])
 
-                imaging_data[t] = (lat_c,lon_c,lat_r,lon_r);
+                #imaging_data[t] = (lat_c,lon_c,lat_r,lon_r);
 
 
                 # step in the enviornment
@@ -338,18 +339,27 @@ class A2C:
             print("cost " + str(np.mean(temp_c)))
 
             costs.append(np.mean(temp_c))
-            rewards_test.append(np.sum(temp_r));
-            test_rewards = self.test()
-            print('test rewards', test_rewards)
+            rewards_train.append(np.sum(temp_r));
+           # rewards_test.append(self.test());
+           # print('test rewards', rewards_test[epoch])
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
-        ax1.plot(costs, color='r', linewidth=1)
-        plt.xlabel('epochs')
-        plt.ylabel('cost')
+        plt.title('Training Results');
+        ax1.plot(costs, color='b--', linewidth=1)
+        plt.xlabel('Epochs')
+        plt.ylabel('Cost')
         ax2 = ax1.twinx()
-        ax2.plot(rewards_test, 'b--', linewidth=1)
-        plt.ylabel('reward')
-        plt.show()
+        ax2.plot(rewards_train, 'r-', linewidth=1)
+        plt.ylabel('Reward')
+        plt.show();
+        '''
+        fig = plt.figure(2)
+        plt.title('Testing Results')
+        plt.xlabel('Epochs');
+        plt.ylabel('Reward');
+        plt.plot(rewards_test,'r-',linewidth=1);
+        plt.show();
+        '''
 
     def test(self):
         start_t = self.test_window
