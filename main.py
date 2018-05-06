@@ -159,29 +159,7 @@ def main():
     model.train()
     #model = Baseline(sim)
     #model.run()
-    sys.exit(0)
 
-
-
-    """
-    for k in sorted(test_dropoff_buckets.keys())[:61]:
-        if len(test_dropoff_buckets[k]) and (k+1) in test_pickup_buckets:
-            
-            dropoff_map = Counter()
-            pickup_map = Counter()
-
-            for i in dropoff_buckets[k]:
-                dropoff_node, lat_idx, lon_idx = geo_utils.get_node(Y[i, 5:7])
-                dropoff_map[dropoff_node] += 1
-            for i in pickup_buckets[k+1]:
-                pickup_node, lat_idx, lon_idx = geo_utils.get_node(Y[i, 2:4])
-                pickup_map[pickup_node] += 1
-            sim.add_maps(k, dropoff_map, pickup_map, True)
-            logging.info("Loaded test map for time bin %d, %d" % (k, 
-                test_time_utils.get_hour_of_day(k)))
-    alg = DQN(state_dim, action_dim, 10, sim, len(dropoff_buckets))
-    alg.train()
-    """
 
 if __name__ == "__main__":
     main()

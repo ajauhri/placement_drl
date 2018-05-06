@@ -59,14 +59,11 @@ class Baseline:
                 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
-                print(r_t)
 
                 # len of r_t should equal to current states (states_t) and 
                 # states obtained from pmr
                 assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
                 assert (len(ids_t) + len(pmr_a_t)) == len(r_t)  
-                
-#                print('iter %d' % t)
                 
                 self._aggregate(trajs, rewards, actions, times, states_t, 
                         r_t, a_t, t, ids_t)
@@ -74,19 +71,17 @@ class Baseline:
                 if t in self.sim.pmr_ids:
                     self._aggregate(trajs, rewards, actions, times,
                             self.sim.pmr_states[t],
-                            r_t,
+                            r_t[len(states_t):],
                             pmr_a_t,
                             t,
                             self.sim.pmr_ids[t])
             #end of an episode run and results aggregated
-            
-            #self.create_animation(imaging_data);
 
             temp_r = [];
             for car_id, r in rewards.items():
                 temp_r.append(np.sum(r));
 
-            print("reward " + str(np.sum(temp_r)))
+            print("reward %.2f" % np.sum(temp_r))
 
             rewards_arr.append(np.sum(temp_r));
 
