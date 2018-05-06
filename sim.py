@@ -24,8 +24,8 @@ class Sim:
         return np.eye(self.classes)[node].tolist() + [th]
     
     def get_next_node(self, curr_node, a):
-        lng_idx = int(curr_node % self.n_lng_grids)
-        lat_idx = int(curr_node / self.n_lng_grids)
+        lng_idx = int(curr_node % (self.n_lng_grids - 1))
+        lat_idx = int(curr_node / (self.n_lng_grids - 1))
         next_node = -1
         
         #NOP
@@ -40,8 +40,8 @@ class Sim:
                 next_node = [lat_idx - 1, lng_idx]
         #up 
         elif a == 3:
-            if lat_idx + 1 >= self.n_lat_grids:
-                next_node = [self.n_lat_grids - 1, lng_idx]
+            if lat_idx + 1 >= self.n_lat_grids - 1:
+                next_node = [self.n_lat_grids - 2, lng_idx]
             else:
                 next_node = [lat_idx + 1, lng_idx]
         #left
@@ -52,12 +52,12 @@ class Sim:
                 next_node = [lat_idx, lng_idx - 1]
         #right
         elif a == 2:
-            if lng_idx + 1 >= self.n_lng_grids:
-                next_node = [lat_idx, self.n_lng_grids - 1]
+            if lng_idx + 1 >= self.n_lng_grids - 1:
+                next_node = [lat_idx, self.n_lng_grids - 2]
             else:
                 next_node = [lat_idx, lng_idx + 1]
 
-        return next_node[0] * self.n_lng_grids + next_node[1]
+        return next_node[0] * (self.n_lng_grids - 1) + next_node[1]
     
     def sample_action_space(self):
         return np.random.randint(self.n_actions)
@@ -80,8 +80,7 @@ class Sim:
             dropoff_node, d_lat_idx, d_lon_idx = \
                     self.geo_utils.get_node(self.X[idx, 5:7])
 
-            if (d_lat_idx > 0 and d_lon_idx > 0):
-
+            if (d_lat_idx >=0 and d_lon_idx >= 0):
                 self.curr_states.append(self.get_state(dropoff_node, th))
                 self.curr_nodes.append(dropoff_node)
                 self.curr_ids.append(self.car_id_counter)
@@ -137,7 +136,7 @@ class Sim:
                 dropoff_node, d_lat_idx, d_lon_idx = \
                         self.geo_utils.get_node(self.X[idx, 5:7])
 
-                if (d_lat_idx > 0 and d_lon_idx > 0):
+                if (d_lat_idx >= 0 and d_lon_idx >= 0):
 
                     p_t = self.time_utils.get_bucket(self.X[idx, 1])
                     if p_t <= self.start_t:
@@ -156,7 +155,6 @@ class Sim:
     def _in_rrs(self, dropoff_node, a, car_id, next_th):
         matched = False
         placmt_node = self.get_next_node(dropoff_node, a)
-        #placmt_centroid = self.geo_utils.get_centroid(placmt_node)
         
         if placmt_node in self.requests:
             for i in range(len(self.requests[placmt_node])):
@@ -186,14 +184,15 @@ class Sim:
                             
                             # maintain all previously matched rides to be 
                             # considered for future cars
-                            self.pmr_dropoffs[new_dropoff_t].append(
-                                    self.requests[placmt_node][i].dn)
-                            self.pmr_states[new_dropoff_t].append(\
-                                    self.get_state(\
-                                    self.requests[placmt_node][i].dn, next_th))
-                            self.pmr_ids[new_dropoff_t].append(car_id)
+                            if self.requests[placmt_node][i].dn >= 0:
+                                self.pmr_dropoffs[new_dropoff_t].append(
+                                        self.requests[placmt_node][i].dn)
+                                self.pmr_states[new_dropoff_t].append(\
+                                        self.get_state(\
+                                        self.requests[placmt_node][i].dn, 
+                                        next_th))
+                                self.pmr_ids[new_dropoff_t].append(car_id)
                         
-                        matched = True
                         r = self.gamma ** ((self.curr_t + 1) - \
                                 self.requests[placmt_node][i].r_t)
                         return r, placmt_node

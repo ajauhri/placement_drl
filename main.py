@@ -78,9 +78,9 @@ def main():
     #max_t = 40
     #for k in sorted(train_dropoff_buckets.keys())[:max_t]:
 
-    all_windows = range(480*3 + 20, 480*7, 480)
-    train_windows = range(480*3 + 20, 480*6, 480)
-    test_window = 480*6 + 20
+    all_windows = [20, 1940, 2420, 2900]
+    train_windows = range(480*4 + 20, 480*7, 480)
+    test_window = 20
     """
     for i in all_windows:
         for r_t in range(i, i+20):
@@ -90,9 +90,8 @@ def main():
                             geo_utils.get_node(X[i, 5:7])
                     pickup_node, p_lat_idx, p_lon_idx = \
                             geo_utils.get_node(X[i, 2:4])
-
-                    if (d_lat_idx > 0 and d_lon_idx > 0) or \
-                        (p_lat_idx > 0 and p_lon_idx > 0):
+                    if (d_lat_idx >= 0 and d_lon_idx >= 0) or \
+                        (p_lat_idx >= 0 and p_lon_idx >= 0):
                          
                         d_t = train_time_utils.get_bucket(X[i, 4])
                         p_t = train_time_utils.get_bucket(X[i, 1])
@@ -109,7 +108,6 @@ def main():
         cPickle.dump(sim.rrs, out_file)
     sys.exit(0)
     """
-    
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
 

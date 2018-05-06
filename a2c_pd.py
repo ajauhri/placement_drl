@@ -14,8 +14,8 @@ class A2C:
         self.hidden_units = hidden_units
         self.sim = sim
         self.n_time_bins = n_time_bins
-        self.actor_alpha = 0.001
-        self.critic_alpha = 0.001
+        self.actor_alpha = 0.0001
+        self.critic_alpha = 0.0001
         self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 5
@@ -31,7 +31,9 @@ class A2C:
     
     def _add_lat_lng(self, lat, lon, nodes):
         for node in nodes:
-            loc = self.sim.geo_utils.get_centroid_v2(node,self.sim.n_lng_grids)
+            loc = self.sim.geo_utils.get_centroid_v2(node, self.sim.n_lng_grids)
+            n, lat_grid, lng_grid = self.sim.geo_utils.get_node(loc)
+            assert n == node
             lat.append(loc[0]);
             lon.append(loc[1]);
 
@@ -164,9 +166,11 @@ class A2C:
             lat = imaging_data[t][0]
             lon = imaging_data[t][1]
             loc = self.m(lon,lat)
-            dst = loc[0] + loc[1];
+            apb = loc[0] + loc[1]
+            dst = 0.5*apb * (apb + 1) + loc[1]
+            dst = loc[0] + loc[1]
             num_each = [dst.count(i) for i in dst];
-            imaging_data[t] = (loc,num_each);
+            imaging_data[t] = (loc, num_each);
         
         plot_points = plt.scatter(0,0,1,'r');
         for t in imaging_data.keys():
@@ -208,7 +212,7 @@ class A2C:
             times = {}
             imaging_data = {}
 
-            #self.init_animation();
+            self.init_animation();
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
@@ -243,19 +247,16 @@ class A2C:
                 if t in self.sim.pmr_dropoffs:
                     self._add_lat_lng(lat, lon, self.sim.pmr_dropoffs[t])
                 imaging_data[t] = (lat, lon);
+                print(len(lat), len(lon), num_ids)
 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
 
                 # len of r_t should equal to current states (states_t) and 
                 # states obtained from pmr
-                assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
-                assert (len(ids_t) + len(pmr_a_t)) == len(r_t)  
-                
-                
+                                
                 self._aggregate(trajs, rewards, actions, times, states_t, 
                         r_t, a_t, t, ids_t)
-                print(len(r_t[len(states_t):]))
                 if t in self.sim.pmr_ids:
                     self._aggregate(trajs, rewards, actions, times,
                             self.sim.pmr_states[t],
@@ -263,8 +264,12 @@ class A2C:
                             pmr_a_t,
                             t,
                             self.sim.pmr_ids[t])
+                assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
+                assert (len(ids_t) + len(pmr_a_t)) == len(r_t)
+                
+
             #end of an episode run and results aggregated
-            #self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
+            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
             for car_id, r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,
