@@ -58,6 +58,7 @@ class Baseline:
                 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
+                print(r_t)
 
                 # len of r_t should equal to current states (states_t) and 
                 # states obtained from pmr
@@ -90,7 +91,8 @@ class Baseline:
 
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
-        ax1.plot(rewards_arr, 'b--', linewidth=1)
-        plt.xlabel('epochs')
-        plt.ylabel('reward')
+        ax1.plot(rewards_arr, 'r-', linewidth=1)
+        plt.title('Baseline Results')
+        plt.xlabel('Epochs')
+        plt.ylabel('Total Reward')
         plt.show()

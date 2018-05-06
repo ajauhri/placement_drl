@@ -137,46 +137,46 @@ class A2C:
             actions[ids_t[i]].append(a_t[i])
             times[ids_t[i]].append(t_t);
 
-    def update_animation(self,imaging_data,plot_points, img_idx):
-#        old_points = plot_points;
-#        old_points.set_color('blue');
-#        plt.draw();
-#        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
-#        img_idx += 1;
-
-        loc = imaging_data[0];
-        num_each = imaging_data[1];
-        plot_points = plt.scatter(loc[0],loc[1],num_each,color='r',zorder=4);
+    def update_animation(self,imaging_data, img_idx):
+        loc_c = imaging_data[0];
+        num_cars = imaging_data[1];
+        #loc_r = imaging_data[2];
+        #num_reqs = imaging_data[3];
+        car_points = plt.scatter(loc_c[0],loc_c[1],num_cars,color='r',zorder=4);
+        #req_points = plt.scatter(loc_r[0],loc_r[1],num_reqs,color='b',zorder=4);
         plt.draw();
         plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
         img_idx += 1;
 
-        plot_points.remove();
-#       old_points.remove();
-#       plt.draw();
-#       plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
-        return plot_points;
+        car_points.remove();
+        #req_points.remove();
 
     def create_animation(self,imaging_data, epoch, tstart, tend):
         img_idx = 0;
         plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
         img_idx += 1;
 
+
+        plot_data = {};
         for t in imaging_data.keys():
-            lat = imaging_data[t][0]
-            lon = imaging_data[t][1]
-            loc = self.m(lon,lat)
-            apb = loc[0] + loc[1]
-            dst = 0.5*apb * (apb + 1) + loc[1]
-            dst = loc[0] + loc[1]
-            num_each = [dst.count(i) for i in dst];
-            imaging_data[t] = (loc, num_each);
-        
-        plot_points = plt.scatter(0,0,1,'r');
-        for t in imaging_data.keys():
-            plot_points = self.update_animation(imaging_data[t],plot_points, img_idx)
+            lat_c = imaging_data[t][0]
+            lon_c = imaging_data[t][1]
+            loc_c = self.m(lon_c,lat_c)
+            apb = loc_c[0] + loc_c[1];
+            dst = 0.5*apb*(apb+1)+loc_c[1];
+            num_cars = [dst.count(i) for i in dst];
+            """
+            lat_r = imaging_data[t][0]
+            lon_r = imaging_data[t][1]
+            loc_r = self.m(lon_r,lat_r)
+            apb = loc_r[0] + loc_r[1];
+            dst = 0.5*apb*(apb+1)+loc_r[1];
+            num_reqs = [dst.count(i) for i in dst];
+            """
+
+            plot_data[t] = (loc_c,num_cars)#,loc_r,num_reqs);
+            self.update_animation(plot_data[t],img_idx)
             img_idx += 1;
-#        plot_points.remove();
         plt.draw();
 
         os.system("ffmpeg -r 1 -i movies/img%d.png -vcodec mpeg4 -y movies/sf_"+str(tstart)+"_to_"+str(tend)+"_run_"+str(epoch)+".mp4")
@@ -200,6 +200,7 @@ class A2C:
 
     def train(self):
         max_epochs = 30
+        rewards_train = []
         rewards_test = []
         costs = []
         for epoch in range(max_epochs):
@@ -241,13 +242,20 @@ class A2C:
                     num_ids += len(self.sim.pmr_ids[t]);
                 print("ts %d, ids %d" % (t, num_ids))
                 
-                lat = []
-                lon = []
-                self._add_lat_lng(lat, lon, self.sim.curr_nodes)
+                lat_c = []
+                lon_c = []
+                self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes)
                 if t in self.sim.pmr_dropoffs:
-                    self._add_lat_lng(lat, lon, self.sim.pmr_dropoffs[t])
-                imaging_data[t] = (lat, lon);
-                print(len(lat), len(lon), num_ids)
+                    self._add_lat_lng(lat_c, lon_c, self.sim.pmr_dropoffs[t])
+
+#                lat_r = []
+#                lon_r = []
+#                self._add_lat_lng(lat_r, lon_r, self.sim.curr_nodes)
+#                if t in self.sim.pmr_dropoffs:
+#                           self._add_lat_lng(lat_r, lon_r, self.sim.pmr_dropoffs[t])
+
+                imaging_data[t] = (lat_c,lon_c)#,lat_r,lon_r);
+
 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
@@ -334,18 +342,27 @@ class A2C:
             print("cost " + str(np.mean(temp_c)))
 
             costs.append(np.mean(temp_c))
-            rewards_test.append(np.sum(temp_r));
-            test_rewards = self.test()
-            print('test rewards', test_rewards)
+            rewards_train.append(np.sum(temp_r));
+           # rewards_test.append(self.test());
+           # print('test rewards', rewards_test[epoch])
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
-        ax1.plot(costs, color='r', linewidth=1)
-        plt.xlabel('epochs')
-        plt.ylabel('cost')
+        plt.title('Training Results');
+        ax1.plot(costs, color='b--', linewidth=1)
+        plt.xlabel('Epochs')
+        plt.ylabel('Cost')
         ax2 = ax1.twinx()
-        ax2.plot(rewards_test, 'b--', linewidth=1)
-        plt.ylabel('reward')
-        plt.show()
+        ax2.plot(rewards_train, 'r-', linewidth=1)
+        plt.ylabel('Reward')
+        plt.show();
+        '''
+        fig = plt.figure(2)
+        plt.title('Testing Results')
+        plt.xlabel('Epochs');
+        plt.ylabel('Reward');
+        plt.plot(rewards_test,'r-',linewidth=1);
+        plt.show();
+        '''
 
     def test(self):
         start_t = self.test_window

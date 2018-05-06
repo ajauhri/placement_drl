@@ -113,23 +113,14 @@ def main():
 
     hidden_units = 128;
     model = A2C(sim, 10, 
-            train_windows, test_window,
-            len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1,
-            sim.n_actions, hidden_units)
+                train_windows, test_window,
+                len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1,
+                sim.n_actions, hidden_units)
+    model.train()
     #model = Baseline(sim)
     #model.run()
-    model.train()
     sys.exit(0)
 
-    """ 
-    state_dim = 5;
-    action_dim = 4;
-    hidden_units = 30;
-    sim = 1;
-    n_time_bins = 100
-    model = A2C(state_dim, action_dim, hidden_units, sim, n_time_bins);
-    model.train();
-    """
 
 
     """
