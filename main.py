@@ -115,7 +115,7 @@ def main():
     # tyler's modifications
     '''
     for w in all_windows:
-        size_arr = [] * (sim.classes+1);
+        size_arr = [0] * (sim.classes+1);
         req_arr = [[]] * (sim.classes+1);
         for r_t in range(w, w+20):
             if r_t in train_request_buckets:
@@ -154,7 +154,7 @@ def main():
     hidden_units = 128;
     model = A2C(sim, 10, 
                 train_windows, test_window,
-                len(geo_utils.lat_grids) * len(geo_utils.lng_grids)+1,
+                len(geo_utils.lat_grids) * len(geo_utils.lng_grids),
                 sim.n_actions, hidden_units)
     model.train()
     #model = Baseline(sim)

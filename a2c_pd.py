@@ -222,38 +222,41 @@ class A2C:
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
+
+                pmr_t = t - self.sim.start_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
-                        feed_dict={self.actor_states: self.sim.curr_states})
+                        feed_dict={self.actor_states: self.sim.get_states()})
                 a_t = []
                 for j in range(len(p_t)):
                     a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
                     a_t.append(a)
                 # obtain actions for previously (p) matched (m) rides (r) 
                 pmr_a_t = []
-                if t in self.sim.pmr_states:
+                if self.sim.pmr_index[pmr_t] > 0:
                     pmr_p_t = self.actor_sess.run(self.actor_out_layer, 
                             feed_dict={\
-                                    self.actor_states: self.sim.pmr_states[t]})
+                                    self.actor_states: self.sim.get_pmr_states(t)})
                     
                     for j in range(len(pmr_p_t)):
                         a = np.random.choice(self.action_dim, 
                                 1, p=pmr_p_t[j])[0]
                         pmr_a_t.append(a)
 
-                states_t = self.sim.curr_states
-                ids_t = self.sim.curr_ids
+                states_t = self.sim.get_states();
+                ids_t = self.sim.curr_ids[:self.sim.curr_index]
                 num_ids = len(ids_t);
-                if (t in self.sim.pmr_ids):
-                    num_ids += len(self.sim.pmr_ids[t]);
+                if self.sim.pmr_index[pmr_t] > 0:
+                    num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
                 train_out_str = "i, %d, %d\n" % (t, num_ids)
                 print('train ', train_out_str[:-1])
                 train_out.write(train_out_str)
                 
                 lat_c = []
                 lon_c = []
-                self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes)
-                if t in self.sim.pmr_dropoffs:
-                    self._add_lat_lng(lat_c, lon_c, self.sim.pmr_dropoffs[t])
+                self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes[:self.sim.curr_index])
+
+                if self.sim.pmr_index[pmr_t] > 0:
+                    self._add_lat_lng(lat_c, lon_c, self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]])
 
 #                lat_r = []
 #                lon_r = []
@@ -272,13 +275,13 @@ class A2C:
                                 
                 self._aggregate(trajs, rewards, actions, times, states_t, 
                         r_t, a_t, t, ids_t)
-                if t in self.sim.pmr_ids:
+                if self.sim.pmr_index[pmr_t] > 0:
                     self._aggregate(trajs, rewards, actions, times,
-                            self.sim.pmr_states[t],
+                            self.sim.get_pmr_states(t),
                             r_t[len(states_t):],
                             pmr_a_t,
                             t,
-                            self.sim.pmr_ids[t])
+                            self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]])
                 assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
                 assert (len(ids_t) + len(pmr_a_t)) == len(r_t)
                 
@@ -393,8 +396,10 @@ class A2C:
         rewards = []
 
         for t in range(self.sim.start_t, self.sim.end_t):
+
+            pmr_t = t - self.sim.start_t;
             p_t = self.actor_sess.run(self.actor_out_layer,
-                    feed_dict={self.actor_states: self.sim.curr_states})
+                    feed_dict={self.actor_states: self.sim.get_states()})
             
             a_t = []
             for j in range(len(p_t)):
@@ -402,21 +407,22 @@ class A2C:
                 a_t.append(a)
             
             pmr_a_t = []
-            if t in self.sim.pmr_states:
+            if self.sim.pmr_index[pmr_t] > 0:
                 pmr_p_t = self.actor_sess.run(self.actor_out_layer, 
                         feed_dict={\
-                                self.actor_states: self.sim.pmr_states[t]})
+                                self.actor_states: self.sim.get_pmr_states(t)})
                 
                 for j in range(len(pmr_p_t)):
                     a = np.random.choice(self.action_dim,
                             1, p=pmr_p_t[j])[0]
                     pmr_a_t.append(a)
 
-            states_t = self.sim.curr_states
-            ids_t = self.sim.curr_ids
+            states_t = self.sim.get_states()
+            ids_t = self.sim.curr_ids[:self.sim.curr_index]
             num_ids = len(ids_t);
-            if (t in self.sim.pmr_ids):
-                num_ids += len(self.sim.pmr_ids[t]);
+            
+            if self.sim.pmr_index[pmr_t] > 0:
+                num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
             print("ts %d, ids %d" % (t, num_ids))
             
             r_t = self.sim.step(a_t, pmr_a_t)
