@@ -335,8 +335,9 @@ class A2C:
                 temp_c.append(c);
                 temp_r.append(np.sum(r));
 
-            print("reward " + str(np.sum(temp_r)))
-            print("cost " + str(np.mean(temp_c)))
+            print("sum reward " + str(np.sum(temp_r)))
+            print("sum cost " + str(np.sum(temp_c)))
+            print("sum abs cost " + str(np.sum(np.abs(temp_c))))
 
             costs.append(np.mean(temp_c))
             rewards_train.append(np.sum(temp_r));
