@@ -73,7 +73,7 @@ class A2C:
                     tf.matmul(self.actor_l3, actor_weights['out']), 
                         actor_biases['out']))
 
-            self.actor_loss_op = -tf.reduce_mean(tf.multiply(tf.log(tf.clip_by_value(\
+            self.actor_loss_op = tf.reduce_mean(tf.multiply(-tf.log(tf.clip_by_value(\
                     self.actor_out_layer,1E-15,0.99)),self.actor_values))
             self.actor_optimizer = tf.train.AdamOptimizer(self.actor_alpha)
             self.actor_train_op = self.actor_optimizer.minimize(\
@@ -213,7 +213,7 @@ class A2C:
             times = {}
             imaging_data = {}
 
-            self.init_animation();
+#            self.init_animation();
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
@@ -277,7 +277,7 @@ class A2C:
                 
 
             #end of an episode run and results aggregated
-            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
+#            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
             for car_id, r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,

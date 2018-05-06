@@ -27,8 +27,9 @@ class Baseline:
     def run(self):
         rewards_arr = []
         for epoch in range(self.max_epochs):
-            start_t = 20#np.random.randint(self.sim.past_t, 
+            start_t = 20 #np.random.randint(self.sim.past_t, 
                     #self.max_t - self.sim.episode_duration)
+
             self.sim.reset(start_t)
 
             trajs = {}

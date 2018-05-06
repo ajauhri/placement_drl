@@ -16,7 +16,8 @@ import pandas
 import logging
 import numpy as np
 from collections import Counter 
-import _pickle as cPickle
+#import _pickle as cPickle
+import cPickle
 
 time_bin_width_mins = 3
 cell_length_meters = 100
@@ -65,7 +66,8 @@ def main():
     # segregate train data based on time
     train_time_utils = helpers.TimeUtilities(time_bin_width_secs)
     train_time_utils.set_bounds(X)
-    train_pickup_buckets = train_time_utils.get_buckets(X, 0)
+    train_request_buckets = train_time_utils.get_buckets(X, 0)
+    train_pickup_buckets  = train_time_utils.get_buckets(X, 1)
     train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
     logging.info("Loaded training %d data points", len(X))
     
@@ -81,11 +83,12 @@ def main():
     all_windows = [20, 1940, 2420, 2900]
     train_windows = range(480*4 + 20, 480*7, 480)
     test_window = 20
+    # abhinav's original
     """
     for i in all_windows:
         for r_t in range(i, i+20):
-            if r_t in train_pickup_buckets:
-                for i in train_pickup_buckets[r_t]:
+            if r_t in train_request_buckets:
+                for i in train_request_buckets[r_t]:
                     dropoff_node, d_lat_idx, d_lon_idx = \
                             geo_utils.get_node(X[i, 5:7])
                     pickup_node, p_lat_idx, p_lon_idx = \
@@ -108,8 +111,45 @@ def main():
         cPickle.dump(sim.rrs, out_file)
     sys.exit(0)
     """
+    
+    # tyler's modifications
+    '''
+    for w in all_windows:
+        size_arr = [] * (sim.classes+1);
+        req_arr = [[]] * (sim.classes+1);
+        for r_t in range(w, w+20):
+            if r_t in train_request_buckets:
+                for i in train_request_buckets[r_t]:
+                    dropoff_node, d_lat_idx, d_lon_idx = \
+                            geo_utils.get_node(X[i, 5:7])
+                    pickup_node, p_lat_idx, p_lon_idx = \
+                            geo_utils.get_node(X[i, 2:4])
+                    if (d_lat_idx >= 0 and d_lon_idx >= 0) or \
+                        (p_lat_idx >= 0 and p_lon_idx >= 0):
+                         
+                        d_t = train_time_utils.get_bucket(X[i, 4])
+                        p_t = train_time_utils.get_bucket(X[i, 1])
+                        
+                        travel_t = d_t - p_t;
+
+                        req_arr[pickup_node].append([dropoff_node, travel_t, r_t]);
+                        size_arr[pickup_node] += 1;
+                
+                logging.info("Loaded map for time bin %d, hour of day %d" % (\
+                        r_t, train_time_utils.get_hour_of_day(r_t)))
+            sim.req_sizes[r_t] = size_arr;
+        sim.rrs[w] = req_arr;
+    with open(r"rrs.pickle", "wb") as out_file:
+        cPickle.dump(sim.rrs, out_file)
+    with open(r"rrs_size.pickle", "wb") as out_file:
+        cPickle.dump(sim.req_sizes, out_file)
+    sys.exit(0)
+    '''
+
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
+    with open(r"rrs_size.pickle", "rb") as input_file:
+        sim.req_sizes = cPickle.load(input_file)
 
     hidden_units = 128;
     model = A2C(sim, 10, 
