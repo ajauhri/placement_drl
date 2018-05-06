@@ -106,18 +106,19 @@ class Sim:
         self.curr_nodes = [-1] * (self.classes);
  
         self._add_all_dropoffs()
-        """
+        '''
         for idx in self.dropoff_buckets[t]:
             dropoff_node, d_lat_idx, d_lon_idx = \
                     self.geo_utils.get_node(self.X[idx, 5:7])
 
             if (d_lat_idx >=0 and d_lon_idx >= 0):
-                self.curr_states.append(self.get_state(dropoff_node, th))
-                self.curr_nodes.append(dropoff_node)
-                self.curr_ids.append(self.car_id_counter)
-                self.car_id_counter += 1
-        """
-        
+                self.curr_nodes[self.curr_index] = dropoff_node
+                self.curr_states[self.curr_index] = dropoff_node
+                self.curr_ids[self.curr_index] = self.car_id_counter
+                self.curr_index += 1;
+                self.car_id_counter += 1        
+        '''
+
     def step(self, a_t, pmr_a_t):
         """
         s: state depicting the centroid of the dropoff grid, hour of day
@@ -169,7 +170,7 @@ class Sim:
                 next_ids[next_index] = self.pmr_ids[self.curr_t - self.start_t][i]
                 next_index += 1;
 
-        """ 
+        '''
         #3 add dropoff vehicles from before beginning of episode
         if self.curr_t+1 in self.dropoff_buckets:
             for idx in self.dropoff_buckets[self.curr_t+1]:
@@ -177,14 +178,15 @@ class Sim:
                         self.geo_utils.get_node(self.X[idx, 5:7])
 
                 if (d_lat_idx >= 0 and d_lon_idx >= 0):
-
                     p_t = self.time_utils.get_bucket(self.X[idx, 1])
                     if p_t <= self.start_t:
-                        self.car_id_counter += 1
-                        next_nodes.append(dropoff_node)
-                        next_states.append(self.get_state(dropoff_node, next_th))
-                        next_ids.append(self.car_id_counter)
-        """
+                        next_nodes[next_index] = dropoff_node
+                        next_states[next_index] = dropoff_node
+                        next_ids[next_index] = self.car_id_counter
+                        next_index += 1;
+                        self.car_id_counter += 1        
+        '''
+
         self.curr_index = next_index
         self.curr_states = next_states[:next_index]
         self.curr_ids = next_ids[:next_index]
