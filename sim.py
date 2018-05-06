@@ -182,11 +182,11 @@ class Sim:
                 if (not self.requests[placmt_node][i].picked) and (\
                         (self.requests[placmt_node][i].r_t < (self.curr_t + 1) \
                         and 
-                        self.requests[placmt_node][i].r_t > (self.start_t - \
-                                self.past_t) and
-                        self.requests[placmt_node][i].p_t > (self.curr_t + 1))
+                        #self.requests[placmt_node][i].r_t > (self.start_t - \
+                        #        self.past_t) and
+                        self.requests[placmt_node][i].p_t >= (self.start_t))
                      or
-                     self.requests[placmt_node][i].r_t == self.curr_t + 1):
+                        self.requests[placmt_node][i].r_t == self.curr_t + 1):
 
                         self.requests[placmt_node][i].picked = True
                         

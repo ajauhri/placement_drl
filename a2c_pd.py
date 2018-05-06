@@ -4,7 +4,8 @@ import logging
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from matplotlib.animation import FuncAnimation
-import os 
+import os
+import uuid
 
 class A2C:
     def __init__(self, sim, n_time_bins, train_windows, test_window,
@@ -86,13 +87,13 @@ class A2C:
         with tf.Graph().as_default() as critic:
             critic_weights = {
                 'h1': tf.Variable(tf.random_uniform([self.state_dim, 
-                    self.hidden_units], minval=-.1, maxval=.1)),
+                    self.hidden_units], minval=0, maxval=.01)),
                 'h2': tf.Variable(tf.random_uniform([self.hidden_units, 
-                    self.hidden_units], minval=-.1, maxval=.1)),
+                    self.hidden_units], minval=0, maxval=.01)),
                 'h3': tf.Variable(tf.random_uniform([self.hidden_units,
-                    self.hidden_units], minval=-.1, maxval=.1)),
+                    self.hidden_units], minval=0, maxval=.01)),
                 'out': tf.Variable(tf.random_uniform([self.hidden_units, 1],
-                    minval=-.1, maxval=.1))
+                    minval=0, maxval=.01))
                 }
             
             critic_biases = {
@@ -203,6 +204,9 @@ class A2C:
         rewards_train = []
         rewards_test = []
         costs = []
+        fname = str(uuid.uuid4())
+        train_out = open(fname + '.train', 'w')
+        test_out = open(fname + '.test', 'w')
         for epoch in range(max_epochs):
             start_t = np.random.choice(self.train_windows, 1)[0] 
             self.sim.reset(start_t)
@@ -213,7 +217,7 @@ class A2C:
             times = {}
             imaging_data = {}
 
-            self.init_animation();
+            #self.init_animation();
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
@@ -240,7 +244,9 @@ class A2C:
                 num_ids = len(ids_t);
                 if (t in self.sim.pmr_ids):
                     num_ids += len(self.sim.pmr_ids[t]);
-                print("ts %d, ids %d" % (t, num_ids))
+                train_out_str = "i, %d, %d\n" % (t, num_ids)
+                print('train ', train_out_str[:-1])
+                train_out.write(train_out_str)
                 
                 lat_c = []
                 lon_c = []
@@ -277,7 +283,7 @@ class A2C:
                 
 
             #end of an episode run and results aggregated
-            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
+            #self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
             for car_id, r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,
@@ -337,15 +343,28 @@ class A2C:
                     self.actor_values: one_hot_values});
                 temp_c.append(c);
                 temp_r.append(np.sum(r));
-
-            print("sum reward " + str(np.sum(temp_r)))
-            print("sum cost " + str(np.sum(temp_c)))
-            print("sum abs cost " + str(np.sum(np.abs(temp_c))))
+            
+            print("sum reward %.2f" % np.sum(temp_r))
+            print("sum cost %.2f" % np.sum(temp_c))
+            #print("sum abs cost %.2f" % np.sum(np.abs(temp_c)))
 
             costs.append(np.mean(temp_c))
             rewards_train.append(np.sum(temp_r));
-           # rewards_test.append(self.test());
-           # print('test rewards', rewards_test[epoch])
+            rewards_test.append(self.test());
+            print('test rewards', rewards_test[epoch])
+            
+            train_out_str = "e, %d, %.2f, %.2f, %.2f\n" % (epoch, 
+                    np.sum(temp_r), costs[-1], np.sum(np.abs(temp_c)))
+            train_out.write(train_out_str)
+            
+            test_out_str = "%d, %.2f\n" % (epoch, rewards_test[-1])
+            test_out.write(test_out_str)
+            
+            test_out.flush()
+            train_out.flush()
+        train_out.close()
+        test_out.close()
+        """
         fig = plt.figure(1)
         ax1 = fig.add_subplot(1,1,1)
         plt.title('Training Results');
@@ -364,17 +383,11 @@ class A2C:
         plt.plot(rewards_test,'r-',linewidth=1);
         plt.show();
         '''
+        """
 
     def test(self):
         start_t = self.test_window
         self.sim.reset(start_t)
-        """
-        trajs = {}
-        rewards = {}
-        actions = {}
-        times = {}
-        imaging_data = {}
-        """
         rewards = []
 
         for t in range(self.sim.start_t, self.sim.end_t):
