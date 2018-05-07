@@ -62,23 +62,6 @@ class Sim:
     def sample_action_space(self):
         return np.random.randint(self.n_actions)
 
-    def _add_all_dropoffs(self):
-        th = self.time_utils.get_hour_of_day(self.curr_t)
-        for t in range(self.start_t, self.end_t):
-            if t in self.dropoff_buckets:
-                    for idx in self.dropoff_buckets[t]:
-                        dropoff_node, d_lat_idx, d_lon_idx = \
-                                self.geo_utils.get_node(self.X[idx, 5:7])
-
-                        if (d_lat_idx >= 0 and d_lon_idx >= 0):
-                            p_t = self.time_utils.get_bucket(self.X[idx, 1])
-                            if p_t < self.start_t:
-                                self.curr_nodes.append(dropoff_node)
-                                self.curr_states.append(\
-                                        self.get_state(dropoff_node, th))
-                                self.curr_ids.append(self.car_id_counter)
-                                self.car_id_counter += 1
-
     def reset(self, t):
         self.pmr_dropoffs = {}
         self.pmr_states = {}
@@ -93,8 +76,7 @@ class Sim:
         self.curr_ids = []
         self.curr_states = []
         self.curr_nodes = []
-        self._add_all_dropoffs()
-        """
+        #self._add_all_dropoffs()
         for idx in self.dropoff_buckets[t]:
             dropoff_node, d_lat_idx, d_lon_idx = \
                     self.geo_utils.get_node(self.X[idx, 5:7])
@@ -104,7 +86,6 @@ class Sim:
                 self.curr_nodes.append(dropoff_node)
                 self.curr_ids.append(self.car_id_counter)
                 self.car_id_counter += 1
-        """
         
     def step(self, a_t, pmr_a_t):
         """
@@ -149,7 +130,7 @@ class Sim:
                     next_nodes.append(next_node)
                     next_states.append(self.get_state(next_node, next_th))
                     next_ids.append(self.pmr_ids[self.curr_t][i])
-        """ 
+        
         #3 add dropoff vehicles from before beginning of episode
         if self.curr_t+1 in self.dropoff_buckets:
             for idx in self.dropoff_buckets[self.curr_t+1]:
@@ -160,11 +141,10 @@ class Sim:
 
                     p_t = self.time_utils.get_bucket(self.X[idx, 1])
                     if p_t <= self.start_t:
-                        self.car_id_counter += 1
                         next_nodes.append(dropoff_node)
                         next_states.append(self.get_state(dropoff_node, next_th))
                         next_ids.append(self.car_id_counter)
-        """
+                        self.car_id_counter += 1
             
         self.curr_states = next_states
         self.curr_ids = next_ids

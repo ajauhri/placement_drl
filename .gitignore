@@ -6,3 +6,4 @@
 *.csv.gz
 *.png
 *.eps
+*.pickle

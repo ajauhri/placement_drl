@@ -6,7 +6,7 @@ from mpl_toolkits.basemap import Basemap
 from matplotlib.animation import FuncAnimation
 
 class Baseline:
-    def __init__(self, sim, max_epochs=100):
+    def __init__(self, sim, max_epochs=20):
         self.sim = sim
         self.max_epochs = max_epochs
         self.action_dim = self.sim.n_actions
@@ -26,6 +26,7 @@ class Baseline:
 
     def run(self):
         rewards_arr = []
+        out = open('baseline', 'w')
         for epoch in range(self.max_epochs):
             start_t = 20#np.random.randint(self.sim.past_t, 
                     #self.max_t - self.sim.episode_duration)
@@ -81,13 +82,8 @@ class Baseline:
                 temp_r.append(np.sum(r));
 
             print("reward %.2f" % np.sum(temp_r))
+            out.write("%d, %.2f\n" % (epoch, np.sum(temp_r)))
+            out.flush()
 
             rewards_arr.append(np.sum(temp_r));
-
-        fig = plt.figure(1)
-        ax1 = fig.add_subplot(1,1,1)
-        ax1.plot(rewards_arr, 'r-', linewidth=1)
-        plt.title('Baseline Results')
-        plt.xlabel('Epochs')
-        plt.ylabel('Total Reward')
-        plt.show()
+        out.close()

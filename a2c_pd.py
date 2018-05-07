@@ -15,8 +15,8 @@ class A2C:
         self.hidden_units = hidden_units
         self.sim = sim
         self.n_time_bins = n_time_bins
-        self.actor_alpha = 0.0001
-        self.critic_alpha = 0.0001
+        self.actor_alpha = 0.0005
+        self.critic_alpha = 0.0005
         self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 5
@@ -200,7 +200,7 @@ class A2C:
 
 
     def train(self):
-        max_epochs = 30
+        max_epochs = 60
         rewards_train = []
         rewards_test = []
         costs = []
@@ -217,7 +217,7 @@ class A2C:
             times = {}
             imaging_data = {}
 
-            #self.init_animation();
+            self.init_animation();
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
@@ -283,7 +283,7 @@ class A2C:
                 
 
             #end of an episode run and results aggregated
-            #self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
+            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
             for car_id, r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,
