@@ -144,7 +144,7 @@ class GeoUtilities:
                        sin_lat1 * sin_lat2 + cos_lat1 * cos_lat2 * cos_delta_lng)
         return EARTH_RADIUS * d * 1000
 
-    def num_steps(self, n, n_lng_grids,p_n):
+    def get_num_steps(self, n, n_lng_grids, p_n):
         lng_idx = int(n % n_lng_grids);
         lat_idx = int(n / n_lng_grids);
 

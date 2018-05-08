@@ -24,7 +24,7 @@ class A2C:
         self.critic_alpha = 0.0005
         self.gamma = 0.90
         self.epsilon = 0.5
-        self.n = 5
+        self.n = 15;
         self.train_windows = train_windows
         self.test_window = test_window
 
@@ -224,7 +224,7 @@ class A2C:
 
     def train(self):
         
-        do_animate = True;
+        do_animate = False;
         save_training = True;
 
         max_epochs = 60
@@ -253,28 +253,31 @@ class A2C:
                 rewards[i] = [0] * num_ts;
                 actions[i] = [0] * num_ts;
                 times[i] = [0] * num_ts;
-
             imaging_data = {};
             
             if do_animate:
                 self.init_animation();
             
+            all_states = np.eye(self.sim.classes);
+            
+            episode_probs = self.actor_sess.run(self.actor_out_layer,
+                     feed_dict={self.actor_states: all_states});
+
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
 
                 pmr_t = t - self.sim.start_t
-                p_t = self.actor_sess.run(self.actor_out_layer,
-                        feed_dict={self.actor_states: self.sim.get_states()})
+                state_nodes = self.sim.curr_states[:self.sim.curr_index];
+                p_t = episode_probs[state_nodes];
                 a_t = [-1] * len(p_t);
                 for j in range(len(p_t)):
                     a_t[j] = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
                 # obtain actions for previously (p) matched (m) rides (r) 
-                    
                 pmr_a_t = [];
+                pmr_nodes = [];
                 if self.sim.pmr_index[pmr_t] > 0:
-                    pmr_p_t = self.actor_sess.run(self.actor_out_layer, 
-                            feed_dict={\
-                                    self.actor_states: self.sim.get_pmr_states(t)})
+                    pmr_nodes = self.sim.pmr_states[pmr_t][:self.sim.pmr_index[pmr_t]];
+                    pmr_p_t = episode_probs[pmr_nodes];
 
                     pmr_a_t = [-1] * len(pmr_p_t);
                     for j in range(len(pmr_p_t)):
@@ -332,8 +335,8 @@ class A2C:
                             pmr_a_t,
                             t,
                             self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]],ids_idx)
-                assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
-                assert (len(ids_t) + len(pmr_a_t)) == len(r_t)
+#                assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
+#                assert (len(ids_t) + len(pmr_a_t)) == len(r_t)
                 
                 
 
