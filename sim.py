@@ -204,6 +204,8 @@ class Sim:
 
             if new_dropoff_t < self.end_t and dropoff_node >= 0:
                 time_index = new_dropoff_t - self.start_t;
+                n_steps = self.geo_utils.get_num_steps(placmt_node, self.n_lng_grids, dropoff_node)
+                print(drive_t,n_steps)
                 # maintain all previously matched rides to be 
                 # considered for future cars
                 self.pmr_dropoffs[time_index][self.pmr_index[time_index]] = dropoff_node;

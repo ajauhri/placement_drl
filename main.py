@@ -119,7 +119,7 @@ def main():
         sim.rrs = cPickle.load(input_file)
         sim.req_sizes = cPickle.load(input_file)
 
-    hidden_units = 512;
+    hidden_units = 2048;
     model = A2C(sim, 10, 
                 train_windows, test_window,
                 sim.classes,
