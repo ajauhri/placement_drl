@@ -1,4 +1,6 @@
 from __future__ import division
+from collections import Counter
+import copy
 import tensorflow as tf, numpy as np, sys
 import logging
 import matplotlib.pyplot as plt
@@ -32,15 +34,25 @@ class A2C:
 
         self.setup_actor_critic()
     
-    def _add_lat_lng(self, lat, lon, nodes, offset):
-        i = offset;
-        for node in nodes:
+    def _add_lat_lng_cars(self, lat, lon, num_c, nodes):
+        i = 0;
+        for node in nodes.keys():
             loc = self.sim.geo_utils.get_centroid_v2(node, self.sim.n_lng_grids)
-#            n, lat_grid, lng_grid = self.sim.geo_utils.get_node(loc)
-#            assert n == node
             lat[i] = loc[0];
             lon[i] = loc[1];
+            num_c[i] = nodes[node];
             i += 1;
+        return i;
+
+    def _add_lat_lng_reqs(self, lat, lon, num_r, reqs, num_reqs):
+        i = 0;
+        for req in reqs:
+            loc = self.sim.geo_utils.get_centroid_v2(req, self.sim.n_lng_grids)
+            lat[i] = loc[0];
+            lon[i] = loc[1];
+            num_r[i] = num_reqs[req]
+            i += 1;
+        return i;
 
     def setup_actor_critic(self):
         with tf.Graph().as_default() as actor:
@@ -143,16 +155,16 @@ class A2C:
     def update_animation(self,imaging_data, img_idx):
         loc_c = imaging_data[0];
         num_cars = imaging_data[1];
-        #loc_r = imaging_data[2];
-        #num_reqs = imaging_data[3];
-        car_points = plt.scatter(loc_c[0],loc_c[1],num_cars,color='r',zorder=4);
-        #req_points = plt.scatter(loc_r[0],loc_r[1],num_reqs,color='b',zorder=4);
+        loc_r = imaging_data[2];
+        num_reqs = imaging_data[3];
+        car_points = plt.scatter(loc_c[0],loc_c[1],num_cars,color='r',zorder=5);
+        req_points = plt.scatter(loc_r[0],loc_r[1],num_reqs,color='b',zorder=4);
         plt.draw();
         plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
         img_idx += 1;
 
         car_points.remove();
-        #req_points.remove();
+        req_points.remove();
 
     def create_animation(self,imaging_data, epoch, tstart, tend):
         img_idx = 0;
@@ -161,23 +173,18 @@ class A2C:
 
 
         plot_data = {};
-        for t in imaging_data.keys():
+        for t in sorted(imaging_data.keys()):
             lat_c = imaging_data[t][0]
             lon_c = imaging_data[t][1]
             loc_c = self.m(lon_c,lat_c)
-            apb = np.array(loc_c[0]) + np.array(loc_c[1])
-            dst = 0.5*apb*(apb+1) + np.array(loc_c[1])
-            num_cars = [dst.tolist().count(i) for i in dst];
-            """
-            lat_r = imaging_data[t][0]
-            lon_r = imaging_data[t][1]
-            loc_r = self.m(lon_r,lat_r)
-            apb = loc_r[0] + loc_r[1];
-            dst = 0.5*apb*(apb+1)+loc_r[1];
-            num_reqs = [dst.count(i) for i in dst];
-            """
+            num_c = imaging_data[t][2];
 
-            plot_data[t] = (loc_c,num_cars)#,loc_r,num_reqs);
+            lat_r = imaging_data[t][3]
+            lon_r = imaging_data[t][4]
+            loc_r = self.m(lon_r,lat_r)
+            num_r = imaging_data[t][5]
+
+            plot_data[t] = (loc_c,num_c,loc_r,num_r);
             self.update_animation(plot_data[t],img_idx)
             img_idx += 1;
         plt.draw();
@@ -230,7 +237,7 @@ class A2C:
 
             imaging_data = {};
 
-            #self.init_animation();
+            self.init_animation();
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
@@ -267,21 +274,26 @@ class A2C:
                 
                 lat_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
                 lon_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
-                self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes[:self.sim.curr_index], 0)
+                num_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
+                curr_cars = Counter(self.sim.curr_nodes[:self.sim.curr_index] + \
+                                    self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]])
+                new_size = self._add_lat_lng_cars(lat_c, lon_c, num_c, curr_cars)
+                lat_c = lat_c[:new_size];
+                lon_c = lon_c[:new_size];
+                num_c = num_c[:new_size];
 
-                if self.sim.pmr_index[pmr_t] > 0:
-                    self._add_lat_lng(lat_c, lon_c,
-                                      self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]],
-                                      self.sim.curr_index)
 
-#                lat_r = [] 
-#                lon_r = []
-#                self._add_lat_lng(lat_r, lon_r, self.sim.curr_nodes)
-#                if t in self.sim.pmr_dropoffs:
-#                           self._add_lat_lng(lat_r, lon_r, self.sim.pmr_dropoffs[t])
-
-                imaging_data[t] = (lat_c,lon_c)#,lat_r,lon_r);
-
+                lat_r = [-1] * self.sim.classes;
+                lon_r = [-1] * self.sim.classes;
+                num_r = [-1] * self.sim.classes;
+                num_reqs = np.array(self.sim.curr_req_size) - np.array(self.sim.curr_req_index);
+                reqs = np.argwhere(num_reqs>0).flatten().tolist()
+                new_size = self._add_lat_lng_reqs(lat_r, lon_r, num_r, reqs, num_reqs)
+                lat_r = lat_r[:new_size];
+                lon_r = lon_r[:new_size];
+                num_r = num_r[:new_size];
+            
+                imaging_data[pmr_t] = (lat_c,lon_c,num_c,lat_r,lon_r,num_r);
 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
@@ -313,9 +325,13 @@ class A2C:
                 actions[car_id] = actions[car_id][:idx];
                 times[car_id] = times[car_id][:idx];
             
-            #self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
+            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
-            print num_cars
+            print("Number of Cars: %f" % (num_cars));
+            num_reqs_tot = sum(self.sim.curr_req_size)
+            print("Number of Requests: %f" % (num_reqs_tot));
+            num_rides_tot = sum(self.sim.curr_req_index)
+            print("Number of Rides: %f" % (num_rides_tot));
             for car_id in range(num_cars):
                 r = rewards[car_id]
                 V_omega = self.critic_sess.run(self.critic_out_layer,

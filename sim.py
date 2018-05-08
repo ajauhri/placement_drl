@@ -20,8 +20,8 @@ class Sim:
         self.geo_utils = geo_utils
         self.n_lng_grids = len(self.geo_utils.lng_grids)
         self.n_lat_grids = len(self.geo_utils.lat_grids)
-        self.classes = len(self.geo_utils.lat_grids) *\
-                len(self.geo_utils.lng_grids)
+        self.classes = (len(self.geo_utils.lat_grids) - 1) *\
+            (len(self.geo_utils.lng_grids) - 1)
     
     def get_states(self):
         return np.eye(self.classes)[self.curr_states[:self.curr_index]].tolist()
@@ -201,7 +201,6 @@ class Sim:
             drive_t = req[1];
             r_t = req[2];
             new_dropoff_t = (self.curr_t + 1) + drive_t
-
 
             if new_dropoff_t < self.end_t and dropoff_node >= 0:
                 time_index = new_dropoff_t - self.start_t;

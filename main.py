@@ -20,7 +20,7 @@ import copy
 #import _pickle as cPickle
 import cPickle
 
-time_bin_width_mins = 3
+time_bin_width_mins = 1
 cell_length_meters = 100
 time_bin_width_secs = time_bin_width_mins * 60
 action_dim = 5 # 0 - left, 1 - down, 2 - right, 3 - up, 4 - NOP
@@ -116,23 +116,30 @@ def main():
     # tyler's modifications
     '''
     for w in all_windows:
-        req_count = Counter();
+        req_count = [0] * sim.classes;
         req_arr = [[]] * sim.classes;
         for i in range(len(req_arr)):
             req_arr[i] = [];
+        count = 0;
+        aggregate = 0;
         for r_t in range(w, w+20):
+            for i in train_dropoff_buckets[r_t]:
+                dropoff_node, d_lat_idx, d_lon_idx = \
+                    geo_utils.get_node(X[i, 5:7])
+                if (dropoff_node >= 0):
+                    aggregate += 1;
+
             if r_t in train_request_buckets:
                 for i in train_request_buckets[r_t]:
                     dropoff_node, d_lat_idx, d_lon_idx = \
                             geo_utils.get_node(X[i, 5:7])
                     pickup_node, p_lat_idx, p_lon_idx = \
                             geo_utils.get_node(X[i, 2:4])
-                    if (d_lat_idx >= 0 and d_lon_idx >= 0) or \
-                        (p_lat_idx >= 0 and p_lon_idx >= 0):
+                    if (pickup_node >= 0):
+                        count += 1;
                          
                         d_t = train_time_utils.get_bucket(X[i, 4])
                         p_t = train_time_utils.get_bucket(X[i, 1])
-                        
                         travel_t = d_t - p_t;
 
                         req_arr[pickup_node].append([dropoff_node, travel_t, r_t]);
@@ -140,6 +147,7 @@ def main():
                 
                 logging.info("Loaded map for time bin %d, hour of day %d" % (\
                         r_t, train_time_utils.get_hour_of_day(r_t)))
+            print(r_t, count, aggregate);
             sim.req_sizes[r_t] = copy.deepcopy(req_count);
         sim.rrs[w] = req_arr;
     with open(r"rrs.pickle", "wb") as out_file:
@@ -157,7 +165,7 @@ def main():
     hidden_units = 128;
     model = A2C(sim, 10, 
                 train_windows, test_window,
-                len(geo_utils.lat_grids) * len(geo_utils.lng_grids),
+                sim.classes,
                 sim.n_actions, hidden_units)
     model.train()
     #model = Baseline(sim)
