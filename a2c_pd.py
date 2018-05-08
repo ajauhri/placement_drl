@@ -10,6 +10,7 @@ import os
 import uuid
 
 import sys
+sf_shapefile = "sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119"
 
 class A2C:
     def __init__(self, sim, n_time_bins, train_windows, test_window,
@@ -153,23 +154,25 @@ class A2C:
             ids_idx[car_id] += 1;
 
     def update_animation(self,imaging_data, img_idx):
-        loc_c = imaging_data[0];
-        num_cars = imaging_data[1];
-        loc_r = imaging_data[2];
-        num_reqs = imaging_data[3];
-        car_points = plt.scatter(loc_c[0],loc_c[1],num_cars,color='r',zorder=5);
-        req_points = plt.scatter(loc_r[0],loc_r[1],num_reqs,color='b',zorder=4);
-        plt.draw();
-        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
-        img_idx += 1;
+        loc_c = imaging_data[0]
+        num_cars = imaging_data[1]
+        loc_r = imaging_data[2]
+        num_reqs = imaging_data[3]
+        car_points = plt.scatter(loc_c[0],loc_c[1],num_cars,color='r',zorder=5)
+        req_points = plt.scatter(loc_r[0],loc_r[1],num_reqs,color='b',zorder=4)
+        plt.draw()
+        plt.savefig(os.path.join(self.out_movies_folder, "img%d.png" % img_idx),
+                bbox_inches='tight', dpi = 220)
+        img_idx += 1
 
         car_points.remove();
         req_points.remove();
 
     def create_animation(self,imaging_data, epoch, tstart, tend):
-        img_idx = 0;
-        plt.savefig("movies/img" + str(img_idx) +".png", bbox_inches='tight', dpi = 220);
-        img_idx += 1;
+        img_idx = 0
+        plt.savefig(os.path.join(self.out_movies_folder, "img%d.png" % img_idx),
+                bbox_inches='tight', dpi = 220)
+        img_idx += 1
 
 
         plot_data = {};
@@ -177,19 +180,22 @@ class A2C:
             lat_c = imaging_data[t][0]
             lon_c = imaging_data[t][1]
             loc_c = self.m(lon_c,lat_c)
-            num_c = imaging_data[t][2];
+            num_c = imaging_data[t][2]
 
             lat_r = imaging_data[t][3]
             lon_r = imaging_data[t][4]
             loc_r = self.m(lon_r,lat_r)
             num_r = imaging_data[t][5]
 
-            plot_data[t] = (loc_c,num_c,loc_r,num_r);
+            plot_data[t] = (loc_c,num_c,loc_r,num_r)
             self.update_animation(plot_data[t],img_idx)
-            img_idx += 1;
-        plt.draw();
-
-        os.system("ffmpeg -r 1 -i movies/img%d.png -vcodec mpeg4 -y movies/sf_"+str(tstart)+"_to_"+str(tend)+"_run_"+str(epoch)+".mp4")
+            img_idx += 1
+        plt.draw()
+        
+        s1 = "ffmpeg -r 1 -i %s" % self.out_movies_folder
+        s2 = ".png -vcodec mpeg4 -y %s/sf_%d_to_%d_run_%d.mp4" % (
+                self.out_movies_folder, tstart, tend, epoch)
+        os.system(os.path.join(s1, "img%d" + s2))
         
     def init_animation(self):
         self.fig = plt.figure(1)
@@ -201,12 +207,20 @@ class A2C:
                     lat_0 = 37.78,lon_0 = -122.41)
         self.m.drawmapboundary(fill_color='aqua',zorder=1)
         self.m.fillcontinents(color='lightgreen',zorder=2)
-        self.m.readshapefile("sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119","sf_roads",zorder=3);
+        self.m.readshapefile(sf_shapefile, "sf_roads",zorder=3)
         plt.title("Downtown San Francisco");
         plt.xlabel("East-West");
         plt.ylabel("North-South");
         plt.draw();
+    
 
+    def _setup_output_dirs(self):
+        self.out_folder = os.path.join('outputs', str(uuid.uuid4()))
+        os.mkdir(self.out_folder)
+        self.out_movies_folder = os.path.join(self.out_folder, 'movies')
+        os.mkdir(self.out_movies_folder)
+        self.train_out = open(os.path.join(self.out_folder, 'train.csv'), 'w')
+        self.test_out = open(os.path.join(self.out_folder, 'test.csv'), 'w')
 
     def train(self):
         
@@ -218,9 +232,9 @@ class A2C:
         rewards_test = [0] * max_epochs;
         test_num_rides = [0] * max_epochs;
         costs = [0] * max_epochs
-        fname = str(uuid.uuid4())
-        train_out = open(fname + '.train', 'w')
-        test_out = open(fname + '.test', 'w')
+
+        self._setup_output_dirs()
+        
         for epoch in range(max_epochs):
             start_t = np.random.choice(self.train_windows, 1)[0] 
             self.sim.reset(start_t)
@@ -277,7 +291,7 @@ class A2C:
                         num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
                     train_out_str = "i, %d, %d\n" % (t, num_ids)
                     print('train ', train_out_str[:-1])
-                    train_out.write(train_out_str)
+                    self.train_out.write(train_out_str)
                 
                 if do_animate:
                     lat_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
@@ -416,35 +430,16 @@ class A2C:
             if save_training:
                 train_out_str = "e, %d, %.2f, %.2f, %.2f\n" \
                     % (epoch, np.sum(temp_r), costs[-1], np.sum(np.abs(temp_c)))
-                train_out.write(train_out_str)
+                self.train_out.write(train_out_str)
                 
-                test_out_str = "%d, %.2f\n, %d\n" % (epoch, rewards_test[epoch], test_num_rides[epoch])
-                test_out.write(test_out_str)
+                test_out_str = "%d, %.2f\n, %d\n" % (
+                        epoch, rewards_test[epoch], test_num_rides[epoch])
+                self.test_out.write(test_out_str)
             
-            test_out.flush()
-            train_out.flush()
-        train_out.close()
-        test_out.close()
-        """
-        fig = plt.figure(1)
-        ax1 = fig.add_subplot(1,1,1)
-        plt.title('Training Results');
-        ax1.plot(costs, color='b--', linewidth=1)
-        plt.xlabel('Epochs')
-        plt.ylabel('Cost')
-        ax2 = ax1.twinx()
-        ax2.plot(rewards_train, 'r-', linewidth=1)
-        plt.ylabel('Reward')
-        plt.show();
-        '''
-        fig = plt.figure(2)
-        plt.title('Testing Results')
-        plt.xlabel('Epochs');
-        plt.ylabel('Reward');
-        plt.plot(rewards_test,'r-',linewidth=1);
-        plt.show();
-        '''
-        """
+            self.test_out.flush()
+            self.train_out.flush()
+        self.train_out.close()
+        self.test_out.close()
 
     def test(self):
         start_t = self.test_window
