@@ -17,8 +17,11 @@ import logging
 import numpy as np
 from collections import Counter 
 import copy
-import cPickle
-#import cPickle
+
+try:
+    import cPickle
+except ImportError:
+    import _pickle as cPickle
 
 time_bin_width_mins = 1
 cell_length_meters = 100
@@ -76,7 +79,7 @@ def main():
     city = config['city'].iloc[0]
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
-            train_dropoff_buckets, 60)
+            train_dropoff_buckets, 20)
     
     #max_t = 40
     #for k in sorted(train_dropoff_buckets.keys())[:max_t]:
