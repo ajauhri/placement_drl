@@ -1,6 +1,8 @@
 from __future__ import division
 import numpy as np
 import copy
+from collections import Counter
+import sys
 
 class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
@@ -104,9 +106,11 @@ class Sim:
         self.curr_ids = [-1] * (self.classes);
         self.curr_states = [-1] * (self.classes);
         self.curr_nodes = [-1] * (self.classes);
+        
+        self.all_pmr_cars = [];
  
-        self._add_all_dropoffs()
-        '''
+        #self._add_all_dropoffs()
+        
         for idx in self.dropoff_buckets[t]:
             dropoff_node, d_lat_idx, d_lon_idx = \
                     self.geo_utils.get_node(self.X[idx, 5:7])
@@ -117,7 +121,7 @@ class Sim:
                 self.curr_ids[self.curr_index] = self.car_id_counter
                 self.curr_index += 1;
                 self.car_id_counter += 1        
-        '''
+        
 
     def step(self, a_t, pmr_a_t):
         """
@@ -142,35 +146,57 @@ class Sim:
 
         #1 check curr dropoffs which can be matched
         for i in range(self.curr_index):
-            r, next_node = self._in_rrs_v2(self.curr_nodes[i], 
+            matched, r, next_node = self._in_rrs_v2(self.curr_nodes[i], 
                                            a_t[i],
                                            self.curr_ids[i],
                                            next_th)
-            rewards[r_index] += r;
+            rewards[r_index] = r;
             r_index += 1;
+
+            if (matched and r == 0):
+                print("matched, ", car_id);
             
             if r == 0:
+                car_id = self.curr_ids[i];
+                if (car_id in self.all_pmr_cars):
+                    print car_id, r, matched, next_node
+                    sys.exit(0)
                 next_nodes[next_index] = next_node
                 next_states[next_index] = next_node
                 next_ids[next_index] = self.curr_ids[i]
                 next_index += 1;
         
+        print "1"
+        cnt = Counter(next_ids[:next_index])
+        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
+
         #2 check dropoffs from previous matched requets if can be matched further
-        for i in range(self.pmr_index[self.curr_t - self.start_t]):
-            r, next_node = self._in_rrs_v2(self.pmr_dropoffs[self.curr_t - self.start_t][i], 
+        for i in range(self.pmr_index[self.curr_t- self.start_t]):
+            matched, r, next_node = self._in_rrs_v2(self.pmr_dropoffs[self.curr_t - self.start_t][i], 
                                            pmr_a_t[i],
                                            self.pmr_ids[self.curr_t - self.start_t][i],
                                            next_th)
-            rewards[r_index] += r;
+            rewards[r_index] = r;
             r_index += 1;
+
+            if (matched and r == 0):
+                print("matched, ", car_id);
                         
             if r == 0:
+                car_id = self.pmr_ids[self.curr_t - self.start_t][i]
+                if (car_id in self.all_pmr_cars):
+                    print car_id, r, matched, next_node
+                    sys.exit(0);
                 next_nodes[next_index] = next_node
                 next_states[next_index] = next_node
                 next_ids[next_index] = self.pmr_ids[self.curr_t - self.start_t][i]
                 next_index += 1;
 
-        '''
+        print "2"
+        cnt = Counter(next_ids[:next_index])
+        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
+    
+
         #3 add dropoff vehicles from before beginning of episode
         if self.curr_t+1 in self.dropoff_buckets:
             for idx in self.dropoff_buckets[self.curr_t+1]:
@@ -179,14 +205,18 @@ class Sim:
 
                 if (d_lat_idx >= 0 and d_lon_idx >= 0):
                     p_t = self.time_utils.get_bucket(self.X[idx, 1])
-                    if p_t <= self.start_t:
+                    if p_t < self.start_t:
                         next_nodes[next_index] = dropoff_node
                         next_states[next_index] = dropoff_node
                         next_ids[next_index] = self.car_id_counter
                         next_index += 1;
                         self.car_id_counter += 1        
-        '''
 
+        print "3"
+        cnt = Counter(next_ids[:next_index])
+        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
+
+                        
         self.curr_index = next_index
         self.curr_states = next_states[:next_index]
         self.curr_ids = next_ids[:next_index]
@@ -250,9 +280,12 @@ class Sim:
         if self.curr_req_size[placmt_node] > self.curr_req_index[placmt_node]:
             req = self.requests[placmt_node][self.curr_req_index[placmt_node]];
             self.curr_req_index[placmt_node] += 1;
+            matched = True;
             
             dropoff_node = req[0];
             drive_t = req[1];
+            if (drive_t == 0):
+                drive_t = 1;
             r_t = req[2];
             new_dropoff_t = (self.curr_t + 1) + drive_t
             if new_dropoff_t < self.end_t and dropoff_node >= 0:
@@ -263,8 +296,9 @@ class Sim:
                 self.pmr_states[time_index][self.pmr_index[time_index]] = dropoff_node; 
                 self.pmr_ids[time_index][self.pmr_index[time_index]] = car_id;
                 self.pmr_index[time_index] += 1;
+                self.all_pmr_cars.append(car_id);
 
             r = self.gamma ** ((self.curr_t + 1) - r_t)
-            return r, placmt_node
+            return matched, r, placmt_node
 
-        return 0, placmt_node
+        return matched, 0, placmt_node

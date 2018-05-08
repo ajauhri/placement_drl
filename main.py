@@ -16,6 +16,7 @@ import pandas
 import logging
 import numpy as np
 from collections import Counter 
+import copy
 #import _pickle as cPickle
 import cPickle
 
@@ -115,8 +116,10 @@ def main():
     # tyler's modifications
     '''
     for w in all_windows:
-        size_arr = [0] * (sim.classes+1);
-        req_arr = [[]] * (sim.classes+1);
+        req_count = Counter();
+        req_arr = [[]] * sim.classes;
+        for i in range(len(req_arr)):
+            req_arr[i] = [];
         for r_t in range(w, w+20):
             if r_t in train_request_buckets:
                 for i in train_request_buckets[r_t]:
@@ -133,11 +136,11 @@ def main():
                         travel_t = d_t - p_t;
 
                         req_arr[pickup_node].append([dropoff_node, travel_t, r_t]);
-                        size_arr[pickup_node] += 1;
+                        req_count[pickup_node] += 1;
                 
                 logging.info("Loaded map for time bin %d, hour of day %d" % (\
                         r_t, train_time_utils.get_hour_of_day(r_t)))
-            sim.req_sizes[r_t] = size_arr;
+            sim.req_sizes[r_t] = copy.deepcopy(req_count);
         sim.rrs[w] = req_arr;
     with open(r"rrs.pickle", "wb") as out_file:
         cPickle.dump(sim.rrs, out_file)

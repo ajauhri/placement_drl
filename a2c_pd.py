@@ -30,13 +30,15 @@ class A2C:
 
         self.setup_actor_critic()
     
-    def _add_lat_lng(self, lat, lon, nodes):
+    def _add_lat_lng(self, lat, lon, nodes, offset):
+        i = offset;
         for node in nodes:
             loc = self.sim.geo_utils.get_centroid_v2(node, self.sim.n_lng_grids)
-            n, lat_grid, lng_grid = self.sim.geo_utils.get_node(loc)
-            assert n == node
-            lat.append(loc[0]);
-            lon.append(loc[1]);
+#            n, lat_grid, lng_grid = self.sim.geo_utils.get_node(loc)
+#            assert n == node
+            lat[i] = loc[0];
+            lon[i] = loc[1];
+            i += 1;
 
     def setup_actor_critic(self):
         with tf.Graph().as_default() as actor:
@@ -126,17 +128,26 @@ class A2C:
         self.critic_sess.run(init)
         
     def _aggregate(self, trajs, rewards, actions, times, states_t, \
-            r_t, a_t, t_t, ids_t):
+            r_t, a_t, t_t, ids_t,ids_idx):
         for i in range(len(states_t)):
+            '''
             if ids_t[i] not in trajs:
                 trajs[ids_t[i]] = []
                 rewards[ids_t[i]] = []
                 actions[ids_t[i]] = []
                 times[ids_t[i]] = [];
-            trajs[ids_t[i]].append(states_t[i])
-            rewards[ids_t[i]].append(r_t[i])
-            actions[ids_t[i]].append(a_t[i])
-            times[ids_t[i]].append(t_t);
+            '''
+            car_id = ids_t[i];
+            idx = ids_idx[car_id];
+            if car_id >= self.sim.classes:
+                print(car_id)
+            if idx >= self.sim.end_t-self.sim.start_t:
+                print(idx, car_id, rewards[car_id], actions[car_id],times[car_id])
+            trajs[car_id][idx] = states_t[i]
+            rewards[car_id][idx] = r_t[i]
+            actions[car_id][idx] = a_t[i]
+            times[car_id][idx] = t_t;
+            ids_idx[car_id] += 1;
 
     def update_animation(self,imaging_data, img_idx):
         loc_c = imaging_data[0];
@@ -201,9 +212,9 @@ class A2C:
 
     def train(self):
         max_epochs = 30
-        rewards_train = []
-        rewards_test = []
-        costs = []
+        rewards_train = [0] * max_epochs;
+        rewards_test = [0] * max_epochs;
+        costs = [0] * max_epochs
         fname = str(uuid.uuid4())
         train_out = open(fname + '.train', 'w')
         test_out = open(fname + '.test', 'w')
@@ -211,11 +222,21 @@ class A2C:
             start_t = np.random.choice(self.train_windows, 1)[0] 
             self.sim.reset(start_t)
 
-            trajs = {}
-            rewards = {}
-            actions = {}
-            times = {}
-            imaging_data = {}
+            num_ts = self.sim.end_t - self.sim.start_t;
+            # classes should be total number of cars in simulation
+            # this should be safe though
+            ids_idx = [0] * self.sim.classes;
+            trajs = [[]] * self.sim.classes;
+            rewards = [[]] * self.sim.classes;
+            actions = [[]] * self.sim.classes;
+            times = [[]] * self.sim.classes;
+            for i in range(self.sim.classes):
+                trajs[i] = [0] * num_ts;
+                rewards[i] = [0] * num_ts;
+                actions[i] = [0] * num_ts;
+                times[i] = [0] * num_ts;
+
+            imaging_data = {};
 
 
             #self.init_animation();
@@ -226,24 +247,25 @@ class A2C:
                 pmr_t = t - self.sim.start_t
                 p_t = self.actor_sess.run(self.actor_out_layer,
                         feed_dict={self.actor_states: self.sim.get_states()})
-                a_t = []
+                a_t = [-1] * len(p_t);
                 for j in range(len(p_t)):
-                    a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
-                    a_t.append(a)
+                    a_t[j] = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
                 # obtain actions for previously (p) matched (m) rides (r) 
-                pmr_a_t = []
+                    
+                pmr_a_t = [];
                 if self.sim.pmr_index[pmr_t] > 0:
                     pmr_p_t = self.actor_sess.run(self.actor_out_layer, 
                             feed_dict={\
                                     self.actor_states: self.sim.get_pmr_states(t)})
-                    
+
+                    pmr_a_t = [-1] * len(pmr_p_t);
                     for j in range(len(pmr_p_t)):
-                        a = np.random.choice(self.action_dim, 
+                        pmr_a_t[j] = np.random.choice(self.action_dim, 
                                 1, p=pmr_p_t[j])[0]
-                        pmr_a_t.append(a)
 
                 states_t = self.sim.get_states();
                 ids_t = self.sim.curr_ids[:self.sim.curr_index]
+
                 num_ids = len(ids_t);
                 if self.sim.pmr_index[pmr_t] > 0:
                     num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
@@ -251,14 +273,16 @@ class A2C:
                 print('train ', train_out_str[:-1])
                 train_out.write(train_out_str)
                 
-                lat_c = []
-                lon_c = []
-                self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes[:self.sim.curr_index])
+                lat_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
+                lon_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
+                self._add_lat_lng(lat_c, lon_c, self.sim.curr_nodes[:self.sim.curr_index], 0)
 
                 if self.sim.pmr_index[pmr_t] > 0:
-                    self._add_lat_lng(lat_c, lon_c, self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]])
+                    self._add_lat_lng(lat_c, lon_c,
+                                      self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]],
+                                      self.sim.curr_index)
 
-#                lat_r = []
+#                lat_r = [] 
 #                lon_r = []
 #                self._add_lat_lng(lat_r, lon_r, self.sim.curr_nodes)
 #                if t in self.sim.pmr_dropoffs:
@@ -274,19 +298,29 @@ class A2C:
                 # states obtained from pmr
                                 
                 self._aggregate(trajs, rewards, actions, times, states_t, 
-                        r_t, a_t, t, ids_t)
+                        r_t, a_t, t, ids_t, ids_idx)
+                
                 if self.sim.pmr_index[pmr_t] > 0:
                     self._aggregate(trajs, rewards, actions, times,
                             self.sim.get_pmr_states(t),
                             r_t[len(states_t):],
                             pmr_a_t,
                             t,
-                            self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]])
+                            self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]],ids_idx)
                 assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
                 assert (len(ids_t) + len(pmr_a_t)) == len(r_t)
                 
+                
 
             #end of an episode run and results aggregated
+
+            for car_id in range(len(ids_idx)):
+                idx = ids_idx[car_id];
+                trajs[car_id] = trajs[car_id][:idx];
+                rewards[car_id] = rewards[car_id][:idx];
+                actions[car_id] = actions[car_id][:idx];
+                times[car_id] = times[car_id][:idx];
+            
 
             #self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
@@ -314,8 +348,9 @@ class A2C:
                     feed_dict={self.critic_states: trajs[car_id], 
                         self.critic_values: R})
 
-            temp_c = [];
-            temp_r = [];
+            temp_c = [0] * len(rewards);
+            temp_r = [0] * len(rewards);
+            k = 0;
             for car_id,r in rewards.items():
                 V_omega = self.critic_sess.run(self.critic_out_layer,
                         feed_dict={self.critic_states: trajs[car_id]}).flatten()
@@ -346,23 +381,24 @@ class A2C:
                     self.actor_loss_op],
                     feed_dict={self.actor_states: trajs[car_id], 
                     self.actor_values: one_hot_values});
-                temp_c.append(c);
-                temp_r.append(np.sum(r));
+                temp_c[k] = c;
+                temp_r[k] =np.sum(r);
+                k += 1;
             
             print("sum reward %.2f" % np.sum(temp_r))
             print("sum cost %.2f" % np.sum(temp_c))
             #print("sum abs cost %.2f" % np.sum(np.abs(temp_c)))
 
-            costs.append(np.mean(temp_c))
-            rewards_train.append(np.sum(temp_r));
-            rewards_test.append(self.test());
+            costs[epoch] = np.mean(temp_c);
+            rewards_train[epoch] = np.sum(temp_r);
+            rewards_test[epoch] = self.test();
             print('test rewards', rewards_test[epoch])
             
             train_out_str = "e, %d, %.2f, %.2f, %.2f\n" % (epoch, 
                     np.sum(temp_r), costs[-1], np.sum(np.abs(temp_c)))
             train_out.write(train_out_str)
             
-            test_out_str = "%d, %.2f\n" % (epoch, rewards_test[-1])
+            test_out_str = "%d, %.2f\n" % (epoch, rewards_test[epoch])
             test_out.write(test_out_str)
             
             test_out.flush()
@@ -393,7 +429,7 @@ class A2C:
     def test(self):
         start_t = self.test_window
         self.sim.reset(start_t)
-        rewards = []
+        rewards = [0] * (self.sim.end_t - self.sim.start_t);
 
         for t in range(self.sim.start_t, self.sim.end_t):
 
@@ -401,21 +437,20 @@ class A2C:
             p_t = self.actor_sess.run(self.actor_out_layer,
                     feed_dict={self.actor_states: self.sim.get_states()})
             
-            a_t = []
+            a_t = [-1] * len(p_t);
             for j in range(len(p_t)):
-                a = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
-                a_t.append(a)
+                a_t[j] = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
             
             pmr_a_t = []
             if self.sim.pmr_index[pmr_t] > 0:
                 pmr_p_t = self.actor_sess.run(self.actor_out_layer, 
                         feed_dict={\
                                 self.actor_states: self.sim.get_pmr_states(t)})
-                
+                pmr_a_t = [-1] * len(pmr_p_t);
                 for j in range(len(pmr_p_t)):
-                    a = np.random.choice(self.action_dim,
+                    pmr_a_t[j] = np.random.choice(self.action_dim,
                             1, p=pmr_p_t[j])[0]
-                    pmr_a_t.append(a)
+
 
             states_t = self.sim.get_states()
             ids_t = self.sim.curr_ids[:self.sim.curr_index]
@@ -426,5 +461,5 @@ class A2C:
             print("ts %d, ids %d" % (t, num_ids))
             
             r_t = self.sim.step(a_t, pmr_a_t)
-            rewards.append(np.sum(r_t))
+            rewards[pmr_t] = np.sum(r_t)
         return np.sum(rewards)
