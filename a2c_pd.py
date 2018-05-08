@@ -7,6 +7,8 @@ from matplotlib.animation import FuncAnimation
 import os
 import uuid
 
+import sys
+
 class A2C:
     def __init__(self, sim, n_time_bins, train_windows, test_window,
             state_dim, action_dim, hidden_units=32):
@@ -130,19 +132,8 @@ class A2C:
     def _aggregate(self, trajs, rewards, actions, times, states_t, \
             r_t, a_t, t_t, ids_t,ids_idx):
         for i in range(len(states_t)):
-            '''
-            if ids_t[i] not in trajs:
-                trajs[ids_t[i]] = []
-                rewards[ids_t[i]] = []
-                actions[ids_t[i]] = []
-                times[ids_t[i]] = [];
-            '''
             car_id = ids_t[i];
             idx = ids_idx[car_id];
-            if car_id >= self.sim.classes:
-                print(car_id)
-            if idx >= self.sim.end_t-self.sim.start_t:
-                print(idx, car_id, rewards[car_id], actions[car_id],times[car_id])
             trajs[car_id][idx] = states_t[i]
             rewards[car_id][idx] = r_t[i]
             actions[car_id][idx] = a_t[i]
@@ -225,6 +216,7 @@ class A2C:
             num_ts = self.sim.end_t - self.sim.start_t;
             # classes should be total number of cars in simulation
             # this should be safe though
+            num_cars = 0;
             ids_idx = [0] * self.sim.classes;
             trajs = [[]] * self.sim.classes;
             rewards = [[]] * self.sim.classes;
@@ -265,6 +257,7 @@ class A2C:
 
                 states_t = self.sim.get_states();
                 ids_t = self.sim.curr_ids[:self.sim.curr_index]
+                num_cars = max(max(ids_t),num_cars);
 
                 num_ids = len(ids_t);
                 if self.sim.pmr_index[pmr_t] > 0:
@@ -314,7 +307,7 @@ class A2C:
 
             #end of an episode run and results aggregated
 
-            for car_id in range(len(ids_idx)):
+            for car_id in range(num_cars):
                 idx = ids_idx[car_id];
                 trajs[car_id] = trajs[car_id][:idx];
                 rewards[car_id] = rewards[car_id][:idx];
@@ -324,7 +317,9 @@ class A2C:
 
             #self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
-            for car_id, r in rewards.items():
+            print num_cars
+            for car_id in range(num_cars):
+                r = rewards[car_id]
                 V_omega = self.critic_sess.run(self.critic_out_layer,
                         feed_dict={self.critic_states: trajs[car_id]}).flatten()
                 
@@ -351,7 +346,9 @@ class A2C:
             temp_c = [0] * len(rewards);
             temp_r = [0] * len(rewards);
             k = 0;
-            for car_id,r in rewards.items():
+            for car_id in range(num_cars):
+#                idx = ids_idx[car_id];
+                r = rewards[car_id]#[:idx]
                 V_omega = self.critic_sess.run(self.critic_out_layer,
                         feed_dict={self.critic_states: trajs[car_id]}).flatten()
 

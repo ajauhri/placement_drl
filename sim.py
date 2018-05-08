@@ -90,9 +90,13 @@ class Sim:
     def reset(self, t):
         self.pmr_index = [0] * self.episode_duration; 
         # technically should be maximum number of cars, not classes
-        self.pmr_dropoffs = [[-1] * (self.classes)] * self.episode_duration;
-        self.pmr_states = [[-1] * (self.classes)] * self.episode_duration;
-        self.pmr_ids = [[-1] * (self.classes)] * self.episode_duration;
+        self.pmr_dropoffs = [[]] * self.episode_duration;
+        self.pmr_states = [[]] * self.episode_duration;
+        self.pmr_ids = [[]] * self.episode_duration;
+        for i in range(self.episode_duration):
+            self.pmr_dropoffs[i] = [-1] * self.classes;
+            self.pmr_states[i] = [-1] * self.classes;
+            self.pmr_ids[i] = [-1] * self.classes;
         self.start_t = t
         self.end_t = t + self.episode_duration
         self.curr_t = t
@@ -107,8 +111,6 @@ class Sim:
         self.curr_states = [-1] * (self.classes);
         self.curr_nodes = [-1] * (self.classes);
         
-        self.all_pmr_cars = [];
- 
         #self._add_all_dropoffs()
         
         for idx in self.dropoff_buckets[t]:
@@ -158,17 +160,14 @@ class Sim:
             
             if r == 0:
                 car_id = self.curr_ids[i];
-                if (car_id in self.all_pmr_cars):
-                    print car_id, r, matched, next_node
-                    sys.exit(0)
                 next_nodes[next_index] = next_node
                 next_states[next_index] = next_node
                 next_ids[next_index] = self.curr_ids[i]
                 next_index += 1;
         
-        print "1"
-        cnt = Counter(next_ids[:next_index])
-        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
+
+#        cnt = Counter(next_ids[:next_index])
+#        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
 
         #2 check dropoffs from previous matched requets if can be matched further
         for i in range(self.pmr_index[self.curr_t- self.start_t]):
@@ -184,17 +183,13 @@ class Sim:
                         
             if r == 0:
                 car_id = self.pmr_ids[self.curr_t - self.start_t][i]
-                if (car_id in self.all_pmr_cars):
-                    print car_id, r, matched, next_node
-                    sys.exit(0);
                 next_nodes[next_index] = next_node
                 next_states[next_index] = next_node
                 next_ids[next_index] = self.pmr_ids[self.curr_t - self.start_t][i]
                 next_index += 1;
 
-        print "2"
-        cnt = Counter(next_ids[:next_index])
-        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
+#        cnt = Counter(next_ids[:next_index])
+#        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
     
 
         #3 add dropoff vehicles from before beginning of episode
@@ -212,9 +207,8 @@ class Sim:
                         next_index += 1;
                         self.car_id_counter += 1        
 
-        print "3"
-        cnt = Counter(next_ids[:next_index])
-        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
+#        cnt = Counter(next_ids[:next_index])
+#        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
 
                         
         self.curr_index = next_index
@@ -284,10 +278,10 @@ class Sim:
             
             dropoff_node = req[0];
             drive_t = req[1];
-            if (drive_t == 0):
-                drive_t = 1;
             r_t = req[2];
             new_dropoff_t = (self.curr_t + 1) + drive_t
+
+
             if new_dropoff_t < self.end_t and dropoff_node >= 0:
                 time_index = new_dropoff_t - self.start_t;
                 # maintain all previously matched rides to be 
@@ -296,7 +290,6 @@ class Sim:
                 self.pmr_states[time_index][self.pmr_index[time_index]] = dropoff_node; 
                 self.pmr_ids[time_index][self.pmr_index[time_index]] = car_id;
                 self.pmr_index[time_index] += 1;
-                self.all_pmr_cars.append(car_id);
 
             r = self.gamma ** ((self.curr_t + 1) - r_t)
             return matched, r, placmt_node
