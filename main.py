@@ -73,7 +73,7 @@ def main():
     logging.info("Loaded training %d data points", len(X))
     
     # segregate data based on time
-    #city = config['city'].iloc[0]
+    city = config['city'].iloc[0]
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
             train_dropoff_buckets)
@@ -108,7 +108,7 @@ def main():
                 
                 logging.info("Loaded map for time bin %d, hour of day %d" % (\
                         r_t, train_time_utils.get_hour_of_day(r_t)))
-    with open(r"rrs.pickle", "wb") as out_file:
+    with open(r"rrs_%s.pickle" % city, "wb") as out_file:
         cPickle.dump(sim.rrs, out_file)
     sys.exit(0)
     """

@@ -17,8 +17,8 @@ class A2C:
         self.hidden_units = hidden_units
         self.sim = sim
         self.n_time_bins = n_time_bins
-        self.actor_alpha = 0.0001
-        self.critic_alpha = 0.0001
+        self.actor_alpha = 0.0005
+        self.critic_alpha = 0.0005
         self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 5
@@ -202,7 +202,7 @@ class A2C:
 
 
     def train(self):
-        max_epochs = 30
+        max_epochs = 60
         rewards_train = [0] * max_epochs;
         rewards_test = [0] * max_epochs;
         costs = [0] * max_epochs
@@ -229,7 +229,6 @@ class A2C:
                 times[i] = [0] * num_ts;
 
             imaging_data = {};
-
 
             #self.init_animation();
             
@@ -314,7 +313,6 @@ class A2C:
                 actions[car_id] = actions[car_id][:idx];
                 times[car_id] = times[car_id][:idx];
             
-
             #self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
             print num_cars

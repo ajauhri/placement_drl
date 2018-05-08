@@ -70,23 +70,6 @@ class Sim:
     def sample_action_space(self):
         return np.random.randint(self.n_actions)
 
-    def _add_all_dropoffs(self):
-        th = self.time_utils.get_hour_of_day(self.curr_t)
-        for t in range(self.start_t, self.end_t):
-            if t in self.dropoff_buckets:
-                    for idx in self.dropoff_buckets[t]:
-                        dropoff_node, d_lat_idx, d_lon_idx = \
-                                self.geo_utils.get_node(self.X[idx, 5:7])
-
-                        if (d_lat_idx >= 0 and d_lon_idx >= 0):
-                            p_t = self.time_utils.get_bucket(self.X[idx, 1])
-                            if p_t < self.start_t:
-                                self.curr_nodes[self.curr_index] = dropoff_node
-                                self.curr_states[self.curr_index] = dropoff_node
-                                self.curr_ids[self.curr_index] = self.car_id_counter
-                                self.curr_index += 1;
-                                self.car_id_counter += 1
-
     def reset(self, t):
         self.pmr_index = [0] * self.episode_duration; 
         # technically should be maximum number of cars, not classes
@@ -102,6 +85,7 @@ class Sim:
         self.curr_t = t
         th = self.time_utils.get_hour_of_day(t)
         self.car_id_counter = 0
+
         self.requests = self.rrs[self.start_t];
         self.curr_req_size = self.req_sizes[self.start_t];
         self.curr_req_index = [0] * (self.classes);
@@ -110,9 +94,7 @@ class Sim:
         self.curr_ids = [-1] * (self.classes);
         self.curr_states = [-1] * (self.classes);
         self.curr_nodes = [-1] * (self.classes);
-        
-        #self._add_all_dropoffs()
-        
+ 
         for idx in self.dropoff_buckets[t]:
             dropoff_node, d_lat_idx, d_lon_idx = \
                     self.geo_utils.get_node(self.X[idx, 5:7])
@@ -124,7 +106,6 @@ class Sim:
                 self.curr_index += 1;
                 self.car_id_counter += 1        
         
-
     def step(self, a_t, pmr_a_t):
         """
         s: state depicting the centroid of the dropoff grid, hour of day
@@ -148,7 +129,7 @@ class Sim:
 
         #1 check curr dropoffs which can be matched
         for i in range(self.curr_index):
-            matched, r, next_node = self._in_rrs_v2(self.curr_nodes[i], 
+            matched, r, next_node = self._in_rrs(self.curr_nodes[i], 
                                            a_t[i],
                                            self.curr_ids[i],
                                            next_th)
@@ -164,14 +145,10 @@ class Sim:
                 next_states[next_index] = next_node
                 next_ids[next_index] = self.curr_ids[i]
                 next_index += 1;
-        
-
-#        cnt = Counter(next_ids[:next_index])
-#        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
 
         #2 check dropoffs from previous matched requets if can be matched further
         for i in range(self.pmr_index[self.curr_t- self.start_t]):
-            matched, r, next_node = self._in_rrs_v2(self.pmr_dropoffs[self.curr_t - self.start_t][i], 
+            matched, r, next_node = self._in_rrs(self.pmr_dropoffs[self.curr_t - self.start_t][i], 
                                            pmr_a_t[i],
                                            self.pmr_ids[self.curr_t - self.start_t][i],
                                            next_th)
@@ -188,10 +165,6 @@ class Sim:
                 next_ids[next_index] = self.pmr_ids[self.curr_t - self.start_t][i]
                 next_index += 1;
 
-#        cnt = Counter(next_ids[:next_index])
-#        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
-    
-
         #3 add dropoff vehicles from before beginning of episode
         if self.curr_t+1 in self.dropoff_buckets:
             for idx in self.dropoff_buckets[self.curr_t+1]:
@@ -207,10 +180,6 @@ class Sim:
                         next_index += 1;
                         self.car_id_counter += 1        
 
-#        cnt = Counter(next_ids[:next_index])
-#        print [car_idx for car_idx, num in cnt.iteritems() if num > 1]
-
-                        
         self.curr_index = next_index
         self.curr_states = next_states[:next_index]
         self.curr_ids = next_ids[:next_index]
@@ -220,54 +189,6 @@ class Sim:
         return rewards[:r_index];
 
     def _in_rrs(self, dropoff_node, a, car_id, next_th):
-        matched = False
-        placmt_node = self.get_next_node(dropoff_node, a)
-        
-        if placmt_node in self.requests:
-            for i in range(len(self.requests[placmt_node])):
-                if (not self.requests[placmt_node][i].picked) and (\
-                        (self.requests[placmt_node][i].r_t < (self.curr_t + 1) \
-                        and 
-                        #self.requests[placmt_node][i].r_t > (self.start_t - \
-                        #        self.past_t) and
-                        self.requests[placmt_node][i].p_t >= (self.start_t))
-                     or
-                        self.requests[placmt_node][i].r_t == self.curr_t + 1):
-
-                        self.requests[placmt_node][i].picked = True
-                        
-                        pickup_t = self.requests[placmt_node][i].p_t
-                        dropoff_t = self.requests[placmt_node][i].d_t
-                        drive_t = dropoff_t - pickup_t
-                        self.requests[placmt_node][i].p_t = self.curr_t + 1
-                        
-                        new_dropoff_t = (self.curr_t + 1) + drive_t
-                        if new_dropoff_t < self.end_t:
-                                                        
-                            # maintain all previously matched rides to be 
-                            # considered for future cars
-                            if self.requests[placmt_node][i].dn >= 0:
-                                if new_dropoff_t not in self.pmr_dropoffs:
-                                    self.pmr_dropoffs[new_dropoff_t] = []
-                                    self.pmr_states[new_dropoff_t] = []
-                                    self.pmr_ids[new_dropoff_t] = []
-
-                                self.pmr_dropoffs[new_dropoff_t].append(
-                                        self.requests[placmt_node][i].dn)
-                                self.pmr_states[new_dropoff_t].append(\
-                                        self.get_state(\
-                                        self.requests[placmt_node][i].dn, 
-                                        next_th))
-                                self.pmr_ids[new_dropoff_t].append(car_id)
-                        
-                        r = self.gamma ** ((self.curr_t + 1) - \
-                                self.requests[placmt_node][i].r_t)
-                        return r, placmt_node
-        if not matched:
-            return 0, placmt_node
-
-
-    def _in_rrs_v2(self, dropoff_node, a, car_id, next_th):
         matched = False
         placmt_node = self.get_next_node(dropoff_node, a)
         
