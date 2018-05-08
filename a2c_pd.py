@@ -209,9 +209,14 @@ class A2C:
 
 
     def train(self):
+        
+        do_animate = False;
+        save_training = False;
+
         max_epochs = 60
         rewards_train = [0] * max_epochs;
         rewards_test = [0] * max_epochs;
+        test_num_rides = [0] * max_epochs;
         costs = [0] * max_epochs
         fname = str(uuid.uuid4())
         train_out = open(fname + '.train', 'w')
@@ -236,8 +241,9 @@ class A2C:
                 times[i] = [0] * num_ts;
 
             imaging_data = {};
-
-            self.init_animation();
+            
+            if do_animate:
+                self.init_animation();
             
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
@@ -265,35 +271,36 @@ class A2C:
                 ids_t = self.sim.curr_ids[:self.sim.curr_index]
                 num_cars = max(max(ids_t),num_cars);
 
-                num_ids = len(ids_t);
-                if self.sim.pmr_index[pmr_t] > 0:
-                    num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
-                train_out_str = "i, %d, %d\n" % (t, num_ids)
-                print('train ', train_out_str[:-1])
-                train_out.write(train_out_str)
+                if save_training:
+                    num_ids = len(ids_t);
+                    if self.sim.pmr_index[pmr_t] > 0:
+                        num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
+                    train_out_str = "i, %d, %d\n" % (t, num_ids)
+                    print('train ', train_out_str[:-1])
+                    train_out.write(train_out_str)
                 
-                lat_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
-                lon_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
-                num_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
-                curr_cars = Counter(self.sim.curr_nodes[:self.sim.curr_index] + \
-                                    self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]])
-                new_size = self._add_lat_lng_cars(lat_c, lon_c, num_c, curr_cars)
-                lat_c = lat_c[:new_size];
-                lon_c = lon_c[:new_size];
-                num_c = num_c[:new_size];
-
-
-                lat_r = [-1] * self.sim.classes;
-                lon_r = [-1] * self.sim.classes;
-                num_r = [-1] * self.sim.classes;
-                num_reqs = np.array(self.sim.curr_req_size) - np.array(self.sim.curr_req_index);
-                reqs = np.argwhere(num_reqs>0).flatten().tolist()
-                new_size = self._add_lat_lng_reqs(lat_r, lon_r, num_r, reqs, num_reqs)
-                lat_r = lat_r[:new_size];
-                lon_r = lon_r[:new_size];
-                num_r = num_r[:new_size];
+                if do_animate:
+                    lat_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
+                    lon_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
+                    num_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
+                    curr_cars = Counter(self.sim.curr_nodes[:self.sim.curr_index] + \
+                                            self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]])
+                    new_size = self._add_lat_lng_cars(lat_c, lon_c, num_c, curr_cars)
+                    lat_c = lat_c[:new_size];
+                    lon_c = lon_c[:new_size];
+                    num_c = num_c[:new_size];
+                    
+                    lat_r = [-1] * self.sim.classes;
+                    lon_r = [-1] * self.sim.classes;
+                    num_r = [-1] * self.sim.classes;
+                    num_reqs = np.array(self.sim.curr_req_size) - np.array(self.sim.curr_req_index);
+                    reqs = np.argwhere(num_reqs>0).flatten().tolist()
+                    new_size = self._add_lat_lng_reqs(lat_r, lon_r, num_r, reqs, num_reqs)
+                    lat_r = lat_r[:new_size];
+                    lon_r = lon_r[:new_size];
+                    num_r = num_r[:new_size];
             
-                imaging_data[pmr_t] = (lat_c,lon_c,num_c,lat_r,lon_r,num_r);
+                    imaging_data[pmr_t] = (lat_c,lon_c,num_c,lat_r,lon_r,num_r);
 
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
@@ -325,7 +332,8 @@ class A2C:
                 actions[car_id] = actions[car_id][:idx];
                 times[car_id] = times[car_id][:idx];
             
-            self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
+            if do_animate:
+                self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
             print("Number of Cars: %f" % (num_cars));
             num_reqs_tot = sum(self.sim.curr_req_size)
@@ -402,15 +410,16 @@ class A2C:
 
             costs[epoch] = np.mean(temp_c);
             rewards_train[epoch] = np.sum(temp_r);
-            rewards_test[epoch] = self.test();
+            rewards_test[epoch], test_num_rides[epoch] = self.test();
             print('test rewards', rewards_test[epoch])
             
-            train_out_str = "e, %d, %.2f, %.2f, %.2f\n" % (epoch, 
-                    np.sum(temp_r), costs[-1], np.sum(np.abs(temp_c)))
-            train_out.write(train_out_str)
-            
-            test_out_str = "%d, %.2f\n" % (epoch, rewards_test[epoch])
-            test_out.write(test_out_str)
+            if save_training:
+                train_out_str = "e, %d, %.2f, %.2f, %.2f\n" \
+                    % (epoch, np.sum(temp_r), costs[-1], np.sum(np.abs(temp_c)))
+                train_out.write(train_out_str)
+                
+                test_out_str = "%d, %.2f\n, %d\n" % (epoch, rewards_test[epoch], test_num_rides[epoch])
+                test_out.write(test_out_str)
             
             test_out.flush()
             train_out.flush()
@@ -442,6 +451,7 @@ class A2C:
         self.sim.reset(start_t)
         rewards = [0] * (self.sim.end_t - self.sim.start_t);
 
+        num_cars = 0;
         for t in range(self.sim.start_t, self.sim.end_t):
 
             pmr_t = t - self.sim.start_t;
@@ -466,6 +476,7 @@ class A2C:
             states_t = self.sim.get_states()
             ids_t = self.sim.curr_ids[:self.sim.curr_index]
             num_ids = len(ids_t);
+            num_cars = max(max(ids_t),num_cars);
             
             if self.sim.pmr_index[pmr_t] > 0:
                 num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
@@ -473,4 +484,11 @@ class A2C:
             
             r_t = self.sim.step(a_t, pmr_a_t)
             rewards[pmr_t] = np.sum(r_t)
-        return np.sum(rewards)
+
+        print("Number of Cars: %f" % (num_cars));
+        num_reqs_tot = sum(self.sim.curr_req_size)
+        print("Number of Requests: %f" % (num_reqs_tot));
+        num_rides_tot = sum(self.sim.curr_req_index)
+        print("Number of Rides: %f" % (num_rides_tot));
+
+        return np.sum(rewards), num_rides_tot

@@ -20,7 +20,7 @@ import copy
 #import _pickle as cPickle
 import cPickle
 
-time_bin_width_mins = 1
+time_bin_width_mins = 3
 cell_length_meters = 100
 time_bin_width_secs = time_bin_width_mins * 60
 action_dim = 5 # 0 - left, 1 - down, 2 - right, 3 - up, 4 - NOP
