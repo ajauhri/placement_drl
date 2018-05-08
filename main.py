@@ -17,10 +17,10 @@ import logging
 import numpy as np
 from collections import Counter 
 import copy
-import _pickle as cPickle
+import cPickle
 #import cPickle
 
-time_bin_width_mins = 3
+time_bin_width_mins = 1
 cell_length_meters = 100
 time_bin_width_secs = time_bin_width_mins * 60
 action_dim = 5 # 0 - left, 1 - down, 2 - right, 3 - up, 4 - NOP
@@ -76,7 +76,7 @@ def main():
     city = config['city'].iloc[0]
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
-            train_dropoff_buckets)
+            train_dropoff_buckets, 60)
     
     #max_t = 40
     #for k in sorted(train_dropoff_buckets.keys())[:max_t]:
@@ -84,7 +84,7 @@ def main():
     all_windows = [60, 5820, 7260, 8700]
     train_windows = range(1440*4 + 60, 1440*7, 1440)
     test_window = 60
-    
+    '''
     for w in all_windows:
         req_count = [0] * sim.classes;
         req_arr = [[]] * sim.classes;
@@ -114,12 +114,12 @@ def main():
         cPickle.dump(sim.rrs, out_file)
         cPickle.dump(sim.req_sizes, out_file)
     sys.exit(0)
-
+    '''
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
         sim.req_sizes = cPickle.load(input_file)
 
-    hidden_units = 128;
+    hidden_units = 512;
     model = A2C(sim, 10, 
                 train_windows, test_window,
                 sim.classes,

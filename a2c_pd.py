@@ -82,12 +82,12 @@ class A2C:
 
             self.actor_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_states, 
                 actor_weights['h1']), actor_biases['b1']))
-            self.actor_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_l1, 
-                actor_weights['h2']), actor_biases['b2']))
-            self.actor_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_l2, 
-                actor_weights['h3']), actor_biases['b3']))
+#            self.actor_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_l1, 
+#                actor_weights['h2']), actor_biases['b2']))
+#            self.actor_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.actor_l2, 
+#                actor_weights['h3']), actor_biases['b3']))
             self.actor_out_layer = tf.nn.softmax(tf.nn.bias_add(
-                    tf.matmul(self.actor_l3, actor_weights['out']), 
+                    tf.matmul(self.actor_l1, actor_weights['out']),  #fix
                         actor_biases['out']))
 
             self.actor_loss_op = tf.reduce_mean(tf.multiply(-tf.log(tf.clip_by_value(\
@@ -124,11 +124,11 @@ class A2C:
            
             critic_l1 = tf.nn.relu(tf.nn.bias_add(tf.matmul(self.critic_states, 
                 critic_weights['h1']), critic_biases['b1']))
-            critic_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l1, 
-                critic_weights['h2']), critic_biases['b2']))
-            critic_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l2, 
-                critic_weights['h3']), critic_biases['b3']))
-            self.critic_out_layer = tf.matmul(critic_l3, 
+#            critic_l2 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l1, 
+#                critic_weights['h2']), critic_biases['b2']))
+#            critic_l3 = tf.nn.relu(tf.nn.bias_add(tf.matmul(critic_l2, 
+#                critic_weights['h3']), critic_biases['b3']))
+            self.critic_out_layer = tf.matmul(critic_l1, # fix 
                     critic_weights['out']) + critic_biases['out']
             
             self.critic_loss_op = tf.reduce_mean(tf.square(\
@@ -210,8 +210,8 @@ class A2C:
 
     def train(self):
         
-        do_animate = False;
-        save_training = False;
+        do_animate = True;
+        save_training = True;
 
         max_epochs = 60
         rewards_train = [0] * max_epochs;
