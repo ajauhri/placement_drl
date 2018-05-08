@@ -23,11 +23,12 @@ try:
 except ImportError:
     import _pickle as cPickle
 
-time_bin_width_mins = 1
+time_bin_width_mins = .5
+time_bins_per_day = int(24*60/time_bin_width_mins)
+time_bins_per_hour = int(60 / time_bin_width_mins)
 cell_length_meters = 100
-time_bin_width_secs = time_bin_width_mins * 60
+time_bin_width_secs = int(time_bin_width_mins * 60)
 action_dim = 5 # 0 - left, 1 - down, 2 - right, 3 - up, 4 - NOP
-state_dim = 3
 
 def main():
     parser = argparse.ArgumentParser(description='Placement')
@@ -79,21 +80,26 @@ def main():
     city = config['city'].iloc[0]
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, 
-            train_dropoff_buckets, 20)
+            train_dropoff_buckets, time_bins_per_hour)
     
     #max_t = 40
     #for k in sorted(train_dropoff_buckets.keys())[:max_t]:
 
-    all_windows = [60, 5820, 7260, 8700]
-    train_windows = range(1440*4 + 60, 1440*7, 1440)
-    test_window = 60
-    '''
+    all_windows = [time_bins_per_hour, 
+            time_bins_per_day*4 + time_bins_per_hour,
+            time_bins_per_day*5 + time_bins_per_hour,
+            time_bins_per_day*6 + time_bins_per_hour
+            ]
+    train_windows = range(time_bins_per_day*4 + time_bins_per_hour, 
+            time_bins_per_day*7, time_bins_per_day)
+    test_window = time_bins_per_hour
+    """
     for w in all_windows:
         req_count = [0] * sim.classes;
         req_arr = [[]] * sim.classes;
         for i in range(len(req_arr)):
             req_arr[i] = [];
-        for r_t in range(w, w+60):
+        for r_t in range(w, w + sim.episode_duration):
             if r_t in train_request_buckets:
                 for i in train_request_buckets[r_t]:
                     dropoff_node, d_lat_idx, d_lon_idx = \
@@ -117,12 +123,13 @@ def main():
         cPickle.dump(sim.rrs, out_file)
         cPickle.dump(sim.req_sizes, out_file)
     sys.exit(0)
-    '''
+    """
+
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
         sim.req_sizes = cPickle.load(input_file)
 
-    hidden_units = 512;
+    hidden_units = 2048;
     model = A2C(sim, 10, 
                 train_windows, test_window,
                 sim.classes,
