@@ -224,7 +224,7 @@ class A2C:
 
     def train(self):
         
-        do_animate = False;
+        do_animate = True;
         save_training = True;
 
         max_epochs = 60

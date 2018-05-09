@@ -164,6 +164,7 @@ class Sim:
                 next_states[next_index] = next_node
                 next_ids[next_index] = self.pmr_ids[self.curr_t - self.start_t][i]
                 next_index += 1;
+#                self.car_id_counter += 1;
 
         #3 add dropoff vehicles from before beginning of episode
         if self.curr_t+1 in self.dropoff_buckets:
@@ -210,8 +211,9 @@ class Sim:
                 # considered for future cars
                 self.pmr_dropoffs[time_index][self.pmr_index[time_index]] = dropoff_node;
                 self.pmr_states[time_index][self.pmr_index[time_index]] = dropoff_node; 
-                self.pmr_ids[time_index][self.pmr_index[time_index]] = car_id;
+                self.pmr_ids[time_index][self.pmr_index[time_index]] = self.car_id_counter;#car_id;
                 self.pmr_index[time_index] += 1;
+                self.car_id_counter += 1;
 
             r = self.gamma ** ((self.curr_t + 1) - r_t)
             return matched, r, placmt_node

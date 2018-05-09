@@ -93,7 +93,8 @@ def main():
     train_windows = range(time_bins_per_day*4 + time_bins_per_hour, 
             time_bins_per_day*7, time_bins_per_day)
     test_window = time_bins_per_hour
-    """
+    
+    '''
     for w in all_windows:
         req_count = [0] * sim.classes;
         req_arr = [[]] * sim.classes;
@@ -123,7 +124,7 @@ def main():
         cPickle.dump(sim.rrs, out_file)
         cPickle.dump(sim.req_sizes, out_file)
     sys.exit(0)
-    """
+    '''
 
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
