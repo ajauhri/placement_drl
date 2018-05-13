@@ -71,16 +71,15 @@ def main():
     # segregate train data based on time
     train_time_utils = helpers.TimeUtilities(time_bin_width_secs)
     train_time_utils.set_bounds(X)
-    train_request_buckets = train_time_utils.get_buckets(X, 0)
-    train_pickup_buckets  = train_time_utils.get_buckets(X, 1)
-    train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
+#    train_request_buckets = train_time_utils.get_buckets(X, 0)
+#    train_pickup_buckets  = train_time_utils.get_buckets(X, 1)
+#    train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
     logging.info("Loaded training %d data points", len(X))
     
     # segregate data based on time
     city = config['city'].iloc[0]
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
-            action_dim, 
-            train_dropoff_buckets, time_bins_per_hour)
+            action_dim, time_bins_per_hour)
     
     #max_t = 40
     #for k in sorted(train_dropoff_buckets.keys())[:max_t]:
@@ -94,7 +93,7 @@ def main():
             time_bins_per_day*7, time_bins_per_day)
     test_window = time_bins_per_hour
     
-    
+    '''
     post_start_cars = {};
     pre_load = 5;
     for w in all_windows:
@@ -141,7 +140,7 @@ def main():
     with open(r"post_start_cars.pickle", "wb") as out_file:
         cPickle.dump(post_start_cars, out_file)
     sys.exit(0)
-    
+    '''
 
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)

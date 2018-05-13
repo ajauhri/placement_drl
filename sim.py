@@ -7,12 +7,11 @@ import time;
 
 class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
-            dropoff_buckets, episode_duration=20, gamma=0.9, past_t=5):
+                 episode_duration=20, gamma=0.9, past_t=5):
         self.X = X
         self.rrs = {}
         self.req_sizes = {}
         self.post_start_cars = {}
-        self.dropoff_buckets = dropoff_buckets
         self.episode_duration = episode_duration
         self.gamma = gamma
         self.past_t = past_t
@@ -86,7 +85,6 @@ class Sim:
         self.end_t = t + self.episode_duration
         self.curr_t = t
         th = self.time_utils.get_hour_of_day(t)
-        self.car_id_counter = 0
 
         self.requests = self.rrs[self.start_t];
         self.curr_req_size = self.req_sizes[self.start_t];
@@ -102,7 +100,7 @@ class Sim:
         
         self.curr_nodes = self.post_start_cars[self.start_t];
         self.curr_states = self.post_start_cars[self.start_t];
-        self.curr_index = len(self.curr_nodes) + 1;
+        self.curr_index = len(self.curr_nodes);
         self.curr_ids = range(self.curr_index);
         self.car_id_counter = self.curr_index;
         
@@ -111,7 +109,11 @@ class Sim:
         s: state depicting the centroid of the dropoff grid, hour of day
         a: left (0), down (1), right (2), up (3), NOP, (4)
         """
-        strt = time.time()
+        do_timing = False;
+        strt = 0;
+        end = 0;
+        if (do_timing):
+            strt = time.time()
         if self.curr_t > self.end_t:
             return False
 
@@ -127,11 +129,11 @@ class Sim:
         self.next_ids = [-1] * (self.classes);
         self.rewards = [0] * (self.classes);
         self.r_index = 0;
-        end = time.time()
-        print("step - setup")
-        print(end-strt)
-
-        strt = time.time()
+        
+        if (do_timing):
+            end = time.time()
+            print("step - setup "+str(end-strt))
+            strt = time.time()
 
         #1 check curr dropoffs which can be matched
         for i in range(self.curr_index):
@@ -152,14 +154,13 @@ class Sim:
                 self.next_ids[self.next_index] = self.curr_ids[i]
                 self.next_index += 1;
 
-        end = time.time()
-        print("step - 1")
-        print(end-strt)
-
-        strt = time.time();
+        if (do_timing):
+            end = time.time()
+            print("step - 1 "+str(end-strt))
+            strt = time.time();
 
         #2 check dropoffs from previous matched requets if can be matched further
-        for i in range(self.pmr_index[self.curr_t- self.start_t]):
+        for i in range(self.pmr_index[self.curr_t - self.start_t]):
             matched, r, next_node = self._in_rrs(self.pmr_dropoffs[self.curr_t - self.start_t][i], 
                                            pmr_a_t[i],
                                            self.pmr_ids[self.curr_t - self.start_t][i],
@@ -178,19 +179,19 @@ class Sim:
                 self.next_index += 1;
 #                self.car_id_counter += 1;
 
-        end = time.time()
-        print("step - 2")
-        print(end-strt)
-
-        strt = time.time();
+        if (do_timing):
+            end = time.time()
+            print("step - 2 " + str(end-strt))
+            strt = time.time();
 
         #3 add dropoff vehicles from before beginning of episode
-        for dropoff_node in self.post_start_cars[self.curr_t]:
-            self.next_nodes[self.next_index] = dropoff_node
-            self.next_states[self.next_index] = dropoff_node
-            self.next_ids[self.next_index] = self.car_id_counter
-            self.next_index += 1;
-            self.car_id_counter += 1        
+        if (self.curr_t + 1 in self.post_start_cars):
+            for dropoff_node in self.post_start_cars[self.curr_t+1]:
+                self.next_nodes[self.next_index] = dropoff_node
+                self.next_states[self.next_index] = dropoff_node
+                self.next_ids[self.next_index] = self.car_id_counter
+                self.next_index += 1;
+                self.car_id_counter += 1        
 
         self.curr_index = self.next_index
         self.curr_states = self.next_states[:self.next_index]
@@ -198,9 +199,9 @@ class Sim:
         self.curr_nodes = self.next_nodes[:self.next_index]
         self.curr_t += 1
 
-        end = time.time()
-        print("step - 3")
-        print(end-strt)
+        if (do_timing):
+            end = time.time()
+            print("step - 3 "+str(end-strt))
 
         return self.rewards[:self.r_index];
 

@@ -146,6 +146,8 @@ class A2C:
         
     def _aggregate(self, trajs, rewards, actions, times, states_t, \
             r_t, a_t, t_t, ids_t,ids_idx):
+#        print(ids_t[:len(states_t)]);
+#        print(ids_idx[:len(states_t)]);
         for i in range(len(states_t)):
             car_id = ids_t[i];
             idx = ids_idx[car_id];
@@ -234,8 +236,9 @@ class A2C:
     def train(self):
         
         do_animate = False;
-        save_training = False;
-
+        save_training = True;
+        do_timing = False;
+        
         max_epochs = 60
         rewards_train = [0] * max_epochs;
         rewards_test = [0] * max_epochs;
@@ -274,7 +277,9 @@ class A2C:
 
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
-                strt = time.time();
+                if (do_timing):
+                    strt = time.time();
+
                 pmr_t = t - self.sim.start_t
                 state_nodes = self.sim.curr_states[:self.sim.curr_index];
                 p_t = episode_probs[state_nodes];
@@ -297,9 +302,9 @@ class A2C:
                 ids_t = self.sim.curr_ids[:self.sim.curr_index]
                 num_cars = np.max([np.max(ids_t),num_cars]);
 
-                end = time.time();
-                print("begin episode")
-                print(end-strt);
+                if (do_timing):
+                    end = time.time();
+                    print("begin episode " + str(end-strt));
 
                 if save_training:
                     num_ids = len(ids_t);
@@ -309,7 +314,9 @@ class A2C:
                     print('train ', train_out_str[:-1])
                     self.train_out.write(train_out_str)
 
-                strt = time.time()
+                if (do_timing):
+                    strt = time.time()
+
                 num_cars_per_node = [0] * self.sim.classes;
                 for ni in self.sim.curr_nodes[:self.sim.curr_index]:
                     num_cars_per_node[ni] += 1;
@@ -330,10 +337,10 @@ class A2C:
                 
 #                img = Image.fromarray(rgb_img);
 #                img.save("rgb%d.png" % 596)
-                
-                end = time.time();
-                print("rgb image")
-                print(end-strt);
+
+                if (do_timing):
+                    end = time.time();
+                    print("rgb image "+str(end-strt));
 
                 if do_animate:
                     lat_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
@@ -355,18 +362,17 @@ class A2C:
                     num_r = num_r[:new_size];
 
                     imaging_data[pmr_t] = (lat_c,lon_c,num_c,lat_r,lon_r,num_r);
-                    
-                strt = time.time()
+                
+                if (do_timing):
+                    strt = time.time()
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
-                end = time.time();
-                print("step time")
-                print(end-strt);
 
-                # len of r_t should equal to current states (states_t) and 
-                # states obtained from pmr
-                         
-                strt = time.time()
+                if (do_timing):
+                    end = time.time();
+                    print("step time " + str(end-strt));
+                    strt = time.time()
+
                 self._aggregate(trajs, rewards, actions, times, states_t, 
                         r_t, a_t, t, ids_t, ids_idx)
                 
@@ -377,16 +383,19 @@ class A2C:
                             pmr_a_t,
                             t,
                             self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]],ids_idx)
-                end = time.time();
-                print("aggregate");
-                print(end-strt);
+                if (do_timing):
+                    end = time.time();
+                    print("aggregate " + str(end-strt));
+
+                # len of r_t should equal to current states (states_t) and 
+                # states obtained from pmr
 #                assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
 #                assert (len(ids_t) + len(pmr_a_t)) == len(r_t)
 
                                 
 
             #end of an episode run and results aggregated
-
+                    
             for car_id in range(num_cars):
                 idx = ids_idx[car_id];
                 trajs[car_id] = trajs[car_id][:idx];
