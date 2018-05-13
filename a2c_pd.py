@@ -8,6 +8,8 @@ from mpl_toolkits.basemap import Basemap
 from matplotlib.animation import FuncAnimation
 import os
 import uuid
+from PIL import Image
+import time
 
 import sys
 sf_shapefile = "sf_road_shapefile/geo_export_bca4a474-0dad-4589-b7c2-f325f80f9119"
@@ -35,13 +37,13 @@ class A2C:
 
         self.setup_actor_critic()
     
-    def _add_lat_lng_cars(self, lat, lon, num_c, nodes):
+    def _add_lat_lng_cars(self, lat, lon, num_c, cars, num_cars):
         i = 0;
-        for node in nodes.keys():
-            loc = self.sim.geo_utils.get_centroid_v2(node, self.sim.n_lng_grids)
+        for car in cars:
+            loc = self.sim.geo_utils.get_centroid_v2(car, self.sim.n_lng_grids)
             lat[i] = loc[0];
             lon[i] = loc[1];
-            num_c[i] = nodes[node];
+            num_c[i] = num_cars[car];
             i += 1;
         return i;
 
@@ -174,6 +176,9 @@ class A2C:
                 bbox_inches='tight', dpi = 220)
         img_idx += 1
 
+        ydim = self.sim.n_lng_grids - 1;
+        xdim = self.sim.n_lat_grids - 1;
+        rgb_img = np.zeros([xdim,ydim,3],dtype=np.uint8);
 
         plot_data = {};
         for t in sorted(imaging_data.keys()):
@@ -189,6 +194,7 @@ class A2C:
 
             plot_data[t] = (loc_c,num_c,loc_r,num_r)
             self.update_animation(plot_data[t],img_idx)
+
             img_idx += 1
         plt.draw()
         
@@ -196,6 +202,9 @@ class A2C:
         s2 = ".png -vcodec mpeg4 -y %s/sf_%d_to_%d_run_%d.mp4" % (
                 self.out_movies_folder, tstart, tend, epoch)
         os.system(os.path.join(s1, "img%d" + s2))
+        s3 = ".png -vcodec mpeg4 -y %s/rgb_sf_%d_to_%d_run_%d.mp4" % (
+                self.out_movies_folder, tstart, tend, epoch)
+        os.system(os.path.join(s1, "rgb%d" + s3))
         
     def init_animation(self):
         self.fig = plt.figure(1)
@@ -224,8 +233,8 @@ class A2C:
 
     def train(self):
         
-        do_animate = True;
-        save_training = True;
+        do_animate = False;
+        save_training = False;
 
         max_epochs = 60
         rewards_train = [0] * max_epochs;
@@ -265,7 +274,7 @@ class A2C:
 
             #beginning of an episode run 
             for t in range(self.sim.start_t, self.sim.end_t): #self.sim.end_t
-
+                strt = time.time();
                 pmr_t = t - self.sim.start_t
                 state_nodes = self.sim.curr_states[:self.sim.curr_index];
                 p_t = episode_probs[state_nodes];
@@ -286,7 +295,11 @@ class A2C:
 
                 states_t = self.sim.get_states();
                 ids_t = self.sim.curr_ids[:self.sim.curr_index]
-                num_cars = max(max(ids_t),num_cars);
+                num_cars = np.max([np.max(ids_t),num_cars]);
+
+                end = time.time();
+                print("begin episode")
+                print(end-strt);
 
                 if save_training:
                     num_ids = len(ids_t);
@@ -295,14 +308,39 @@ class A2C:
                     train_out_str = "i, %d, %d\n" % (t, num_ids)
                     print('train ', train_out_str[:-1])
                     self.train_out.write(train_out_str)
+
+                strt = time.time()
+                num_cars_per_node = [0] * self.sim.classes;
+                for ni in self.sim.curr_nodes[:self.sim.curr_index]:
+                    num_cars_per_node[ni] += 1;
+                for ni in self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]]:
+                    num_cars_per_node[ni] += 1;
+                num_reqs = np.array(self.sim.curr_req_size) - np.array(self.sim.curr_req_index);
+                    
+                ydim = self.sim.n_lng_grids - 1;
+                xdim = self.sim.n_lat_grids - 1;
+                rgb_img = np.zeros([xdim,ydim,3],dtype=np.uint8);
                 
+                red = np.flipud(np.reshape(num_cars_per_node,[xdim,ydim]));
+                blue = np.flipud(np.reshape(num_reqs,[xdim,ydim]));
+#                green = np.flipud();
+                rgb_img[:,:,0] = red;
+#                rgb_img[:,:,1] = 0;
+                rgb_img[:,:,2] = blue;
+                
+#                img = Image.fromarray(rgb_img);
+#                img.save("rgb%d.png" % 596)
+                
+                end = time.time();
+                print("rgb image")
+                print(end-strt);
+
                 if do_animate:
                     lat_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
                     lon_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
                     num_c = [-1] * (self.sim.curr_index+self.sim.pmr_index[pmr_t]);
-                    curr_cars = Counter(self.sim.curr_nodes[:self.sim.curr_index] + \
-                                            self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]])
-                    new_size = self._add_lat_lng_cars(lat_c, lon_c, num_c, curr_cars)
+                    cars = np.argwhere(num_cars_per_node>0).flatten().tolist();
+                    new_size = self._add_lat_lng_cars(lat_c, lon_c, num_c, cars, num_cars_per_node)
                     lat_c = lat_c[:new_size];
                     lon_c = lon_c[:new_size];
                     num_c = num_c[:new_size];
@@ -310,21 +348,25 @@ class A2C:
                     lat_r = [-1] * self.sim.classes;
                     lon_r = [-1] * self.sim.classes;
                     num_r = [-1] * self.sim.classes;
-                    num_reqs = np.array(self.sim.curr_req_size) - np.array(self.sim.curr_req_index);
                     reqs = np.argwhere(num_reqs>0).flatten().tolist()
                     new_size = self._add_lat_lng_reqs(lat_r, lon_r, num_r, reqs, num_reqs)
                     lat_r = lat_r[:new_size];
                     lon_r = lon_r[:new_size];
                     num_r = num_r[:new_size];
-            
-                    imaging_data[pmr_t] = (lat_c,lon_c,num_c,lat_r,lon_r,num_r);
 
+                    imaging_data[pmr_t] = (lat_c,lon_c,num_c,lat_r,lon_r,num_r);
+                    
+                strt = time.time()
                 # step in the enviornment
                 r_t = self.sim.step(a_t, pmr_a_t)
+                end = time.time();
+                print("step time")
+                print(end-strt);
 
                 # len of r_t should equal to current states (states_t) and 
                 # states obtained from pmr
-                                
+                         
+                strt = time.time()
                 self._aggregate(trajs, rewards, actions, times, states_t, 
                         r_t, a_t, t, ids_t, ids_idx)
                 
@@ -335,10 +377,13 @@ class A2C:
                             pmr_a_t,
                             t,
                             self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]],ids_idx)
+                end = time.time();
+                print("aggregate");
+                print(end-strt);
 #                assert (len(states_t) + len(pmr_a_t)) == len(r_t)  
 #                assert (len(ids_t) + len(pmr_a_t)) == len(r_t)
-                
-                
+
+                                
 
             #end of an episode run and results aggregated
 
@@ -474,7 +519,7 @@ class A2C:
             states_t = self.sim.get_states()
             ids_t = self.sim.curr_ids[:self.sim.curr_index]
             num_ids = len(ids_t);
-            num_cars = max(max(ids_t),num_cars);
+            num_cars = np.max([np.max(ids_t),num_cars]);
             
             if self.sim.pmr_index[pmr_t] > 0:
                 num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
@@ -490,3 +535,4 @@ class A2C:
         print("Number of Rides: %f" % (num_rides_tot));
 
         return np.sum(rewards), num_rides_tot
+

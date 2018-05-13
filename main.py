@@ -94,13 +94,15 @@ def main():
             time_bins_per_day*7, time_bins_per_day)
     test_window = time_bins_per_hour
     
-    '''
+    
+    post_start_cars = {};
+    pre_load = 5;
     for w in all_windows:
         req_count = [0] * sim.classes;
         req_arr = [[]] * sim.classes;
         for i in range(len(req_arr)):
             req_arr[i] = [];
-        for r_t in range(w, w + sim.episode_duration):
+        for r_t in range(w-pre_load, w + sim.episode_duration):
             if r_t in train_request_buckets:
                 for i in train_request_buckets[r_t]:
                     dropoff_node, d_lat_idx, d_lon_idx = \
@@ -112,33 +114,52 @@ def main():
                         d_t = train_time_utils.get_bucket(X[i, 4])
                         p_t = train_time_utils.get_bucket(X[i, 1])
                         travel_t = d_t - p_t;
-
-                        req_arr[pickup_node].append([dropoff_node, travel_t, r_t]);
-                        req_count[pickup_node] += 1;
-                
-                logging.info("Loaded map for time bin %d, hour of day %d" % (\
-                        r_t, train_time_utils.get_hour_of_day(r_t)))
+                        if (p_t >= w):
+                            req_arr[pickup_node].append([dropoff_node, travel_t, max(r_t,w)]);
+                            req_count[pickup_node] += 1;
+            logging.info("Loaded Requests for time bin %d, hour of day %d" % (\
+                    r_t, train_time_utils.get_hour_of_day(r_t)))
             sim.req_sizes[r_t] = copy.deepcopy(req_count);
+
+        for d_t in range(w,w+sim.episode_duration):
+            if (d_t not in post_start_cars):
+                post_start_cars[d_t] = [];
+            if d_t in train_dropoff_buckets:
+                for i in train_dropoff_buckets[d_t]:
+                    dropoff_node, d_lat_idx, d_lon_idx = \
+                        geo_utils.get_node(X[i, 5:7])
+                    if (dropoff_node >= 0):
+                        r_t = train_time_utils.get_bucket(X[i,0]);
+                        if (r_t < (w - pre_load) or p_t < w):
+                            post_start_cars[d_t].append(dropoff_node);
+            logging.info("Loaded Dropoffs for time bin %d, hour of day %d" % (\
+                    d_t, train_time_utils.get_hour_of_day(d_t)))
         sim.rrs[w] = req_arr;
     with open(r"rrs.pickle", "wb") as out_file:
         cPickle.dump(sim.rrs, out_file)
         cPickle.dump(sim.req_sizes, out_file)
+    with open(r"post_start_cars.pickle", "wb") as out_file:
+        cPickle.dump(post_start_cars, out_file)
     sys.exit(0)
-    '''
+    
 
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
         sim.req_sizes = cPickle.load(input_file)
+    with open(r"post_start_cars.pickle","rb") as input_file:
+        sim.post_start_cars = cPickle.load(input_file);
 
     hidden_units = 2048;
+
     model = A2C(sim, 10, 
                 train_windows, test_window,
                 sim.classes,
                 sim.n_actions, hidden_units)
     model.train()
-    #model = Baseline(sim)
-    #model.run()
-
+    '''
+    model = Baseline(sim)
+    model.run()
+    '''
 
 if __name__ == "__main__":
     main()

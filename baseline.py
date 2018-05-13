@@ -6,7 +6,7 @@ from mpl_toolkits.basemap import Basemap
 from matplotlib.animation import FuncAnimation
 
 class Baseline:
-    def __init__(self, sim, max_epochs=20):
+    def __init__(self, sim, max_epochs=60):
         self.sim = sim
         self.max_epochs = max_epochs
         self.action_dim = self.sim.n_actions
@@ -14,7 +14,7 @@ class Baseline:
     def run(self):
         out = open('baseline', 'w')
         for epoch in range(self.max_epochs):
-            start_t = 20
+            start_t = 120
             self.sim.reset(start_t)
             rewards = [0] * (self.sim.end_t - self.sim.start_t);
 
