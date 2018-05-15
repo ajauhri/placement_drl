@@ -268,7 +268,7 @@ class A2C:
             if do_animate:
                 self.init_animation();
             
-            all_states = np.eye(self.sim.classes);
+            all_states = np.eye(self.sim.num_cells);
             
             episode_probs = self.actor_sess.run(self.actor_out_layer,
                      feed_dict={self.actor_states: all_states});
@@ -315,7 +315,7 @@ class A2C:
                 if (do_timing):
                     strt = time.time()
 
-                num_cars_per_node = [0] * self.sim.classes;
+                num_cars_per_node = [0] * self.sim.num_cells;
                 for ni in self.sim.curr_nodes[:self.sim.curr_index]:
                     num_cars_per_node[ni] += 1;
                 for ni in self.sim.pmr_dropoffs[pmr_t][:self.sim.pmr_index[pmr_t]]:

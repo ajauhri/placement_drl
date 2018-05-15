@@ -7,6 +7,7 @@ import helpers
 from sim import Sim
 from dqn import DQN
 from a2c_pd import A2C
+from worker import Worker
 from baseline import Baseline
 
 import sys
@@ -71,9 +72,9 @@ def main():
     # segregate train data based on time
     train_time_utils = helpers.TimeUtilities(time_bin_width_secs)
     train_time_utils.set_bounds(X)
-#    train_request_buckets = train_time_utils.get_buckets(X, 0)
-#    train_pickup_buckets  = train_time_utils.get_buckets(X, 1)
-#    train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
+    train_request_buckets = train_time_utils.get_buckets(X, 0)
+    train_pickup_buckets  = train_time_utils.get_buckets(X, 1)
+    train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
     logging.info("Loaded training %d data points", len(X))
     
     # segregate data based on time
@@ -93,12 +94,11 @@ def main():
             time_bins_per_day*7, time_bins_per_day)
     test_window = time_bins_per_hour
     
-    '''
     post_start_cars = {};
     pre_load = 5;
     for w in all_windows:
-        req_count = [0] * sim.classes;
-        req_arr = [[]] * sim.classes;
+        req_count = [0] * sim.num_cells
+        req_arr = [[]] * sim.num_cells
         for i in range(len(req_arr)):
             req_arr[i] = [];
         for r_t in range(w-pre_load, w + sim.episode_duration):
@@ -140,7 +140,6 @@ def main():
     with open(r"post_start_cars.pickle", "wb") as out_file:
         cPickle.dump(post_start_cars, out_file)
     sys.exit(0)
-    '''
 
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
@@ -149,12 +148,15 @@ def main():
         sim.post_start_cars = cPickle.load(input_file);
 
     hidden_units = 2048;
-
+    worker = Worker(sim, 10, train_windows, test_windows, 
+            sim.num_cells, sim.n_actions)
+    """
     model = A2C(sim, 10, 
                 train_windows, test_window,
-                sim.classes,
+                sim.num_cells,
                 sim.n_actions, hidden_units)
     model.train()
+    """
     '''
     model = Baseline(sim)
     model.run()

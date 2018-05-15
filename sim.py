@@ -21,17 +21,17 @@ class Sim:
         self.geo_utils = geo_utils
         self.n_lng_grids = len(self.geo_utils.lng_grids)
         self.n_lat_grids = len(self.geo_utils.lat_grids)
-        self.classes = (len(self.geo_utils.lat_grids) - 1) *\
+        self.num_cells = (len(self.geo_utils.lat_grids) - 1) *\
             (len(self.geo_utils.lng_grids) - 1)
-        self.max_cars = self.classes*3;
+        self.max_cars = self.num_cells*3
     
     def get_states(self):
-        return np.eye(self.classes)[self.curr_states[:self.curr_index]].tolist()
+        return np.eye(self.num_cells)[self.curr_states[:self.curr_index]].tolist()
 
     def get_pmr_states(self,t):
         t_i = t - self.start_t;
         pmr_state = self.pmr_states[t_i][:self.pmr_index[t_i]];
-        return np.eye(self.classes)[pmr_state].tolist();
+        return np.eye(self.num_cells)[pmr_state].tolist();
     
     def get_next_node(self, curr_node, a):
         lng_idx = int(curr_node % (self.n_lng_grids - 1))
@@ -89,7 +89,7 @@ class Sim:
 
         self.requests = self.rrs[self.start_t];
         self.curr_req_size = self.req_sizes[self.start_t];
-        self.curr_req_index = [0] * (self.classes);
+        self.curr_req_index = [0] * (self.num_cells);
 
         self.next_index = 0;
         # technically should be maximum number of cars, not classes
