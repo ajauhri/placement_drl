@@ -22,8 +22,8 @@ class A2C:
         self.hidden_units = hidden_units
         self.sim = sim
         self.n_time_bins = n_time_bins
-        self.actor_alpha = 0.0005
-        self.critic_alpha = 0.0005
+        self.actor_alpha = 0.0001
+        self.critic_alpha = 0.0001
         self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 15;
@@ -146,8 +146,6 @@ class A2C:
         
     def _aggregate(self, trajs, rewards, actions, times, states_t, \
             r_t, a_t, t_t, ids_t,ids_idx):
-#        print(ids_t[:len(states_t)]);
-#        print(ids_idx[:len(states_t)]);
         for i in range(len(states_t)):
             car_id = ids_t[i];
             idx = ids_idx[car_id];
@@ -255,12 +253,12 @@ class A2C:
             # classes should be total number of cars in simulation
             # this should be safe though
             num_cars = 0;
-            ids_idx = [0] * self.sim.classes;
-            trajs = [[]] * self.sim.classes;
-            rewards = [[]] * self.sim.classes;
-            actions = [[]] * self.sim.classes;
-            times = [[]] * self.sim.classes;
-            for i in range(self.sim.classes):
+            ids_idx = [0] * self.sim.max_cars;
+            trajs = [[]] * self.sim.max_cars;
+            rewards = [[]] * self.sim.max_cars;
+            actions = [[]] * self.sim.max_cars;
+            times = [[]] * self.sim.max_cars;
+            for i in range(self.sim.max_cars):
                 trajs[i] = [0] * num_ts;
                 rewards[i] = [0] * num_ts;
                 actions[i] = [0] * num_ts;
@@ -300,7 +298,7 @@ class A2C:
 
                 states_t = self.sim.get_states();
                 ids_t = self.sim.curr_ids[:self.sim.curr_index]
-                num_cars = np.max([np.max(ids_t),num_cars]);
+                num_cars = np.max([np.max(np.asarray(ids_t)+1),num_cars]);
 
                 if (do_timing):
                     end = time.time();
@@ -352,9 +350,9 @@ class A2C:
                     lon_c = lon_c[:new_size];
                     num_c = num_c[:new_size];
                     
-                    lat_r = [-1] * self.sim.classes;
-                    lon_r = [-1] * self.sim.classes;
-                    num_r = [-1] * self.sim.classes;
+                    lat_r = [-1] * self.sim.max_cars;
+                    lon_r = [-1] * self.sim.max_cars;
+                    num_r = [-1] * self.sim.max_cars;
                     reqs = np.argwhere(num_reqs>0).flatten().tolist()
                     new_size = self._add_lat_lng_reqs(lat_r, lon_r, num_r, reqs, num_reqs)
                     lat_r = lat_r[:new_size];
@@ -395,14 +393,12 @@ class A2C:
                                 
 
             #end of an episode run and results aggregated
-                    
             for car_id in range(num_cars):
                 idx = ids_idx[car_id];
                 trajs[car_id] = trajs[car_id][:idx];
                 rewards[car_id] = rewards[car_id][:idx];
                 actions[car_id] = actions[car_id][:idx];
                 times[car_id] = times[car_id][:idx];
-            
             if do_animate:
                 self.create_animation(imaging_data, epoch, self.sim.start_t, self.sim.end_t);
 
@@ -411,6 +407,9 @@ class A2C:
             print("Number of Requests: %f" % (num_reqs_tot));
             num_rides_tot = sum(self.sim.curr_req_index)
             print("Number of Rides: %f" % (num_rides_tot));
+            print("rewards? " + str(np.sum(np.sum(rewards))));
+            r_fst = 0;
+
             for car_id in range(num_cars):
                 r = rewards[car_id]
                 V_omega = self.critic_sess.run(self.critic_out_layer,
@@ -431,10 +430,11 @@ class A2C:
                         cum_r += r[i+j] * (self.gamma**cum_td[j]);
                     R[i] = cum_r
                 
-                _, c = self.critic_sess.run([self.critic_train_op, 
-                    self.critic_loss_op], 
-                    feed_dict={self.critic_states: trajs[car_id], 
-                        self.critic_values: R})
+#                _, c = self.critic_sess.run([self.critic_train_op, 
+#                    self.critic_loss_op], 
+#                    feed_dict={self.critic_states: trajs[car_id], 
+#                        self.critic_values: R})
+                r_fst += np.sum(r);
 
             temp_c = [0] * len(rewards);
             temp_r = [0] * len(rewards);
@@ -467,12 +467,13 @@ class A2C:
                 for j in range(len(a_s)):
                     one_hot_values[j, a_s[j]] = values[j];
 
-                _, c = self.actor_sess.run([self.actor_train_op,
-                    self.actor_loss_op],
-                    feed_dict={self.actor_states: trajs[car_id], 
-                    self.actor_values: one_hot_values});
+#                _, c = self.actor_sess.run([self.actor_train_op,
+#                    self.actor_loss_op],
+#                    feed_dict={self.actor_states: trajs[car_id], 
+#                    self.actor_values: one_hot_values});
+                c=1;
                 temp_c[k] = c;
-                temp_r[k] =np.sum(r);
+                temp_r[k] = np.sum(r);
                 k += 1;
             
             print("sum reward %.2f" % np.sum(temp_r))

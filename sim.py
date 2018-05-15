@@ -23,6 +23,7 @@ class Sim:
         self.n_lat_grids = len(self.geo_utils.lat_grids)
         self.classes = (len(self.geo_utils.lat_grids) - 1) *\
             (len(self.geo_utils.lng_grids) - 1)
+        self.max_cars = self.classes*3;
     
     def get_states(self):
         return np.eye(self.classes)[self.curr_states[:self.curr_index]].tolist()
@@ -78,9 +79,9 @@ class Sim:
         self.pmr_states = [[]] * self.episode_duration;
         self.pmr_ids = [[]] * self.episode_duration;
         for i in range(self.episode_duration):
-            self.pmr_dropoffs[i] = [-1] * self.classes;
-            self.pmr_states[i] = [-1] * self.classes;
-            self.pmr_ids[i] = [-1] * self.classes;
+            self.pmr_dropoffs[i] = [-1] * self.max_cars;
+            self.pmr_states[i] = [-1] * self.max_cars;
+            self.pmr_ids[i] = [-1] * self.max_cars;
         self.start_t = t
         self.end_t = t + self.episode_duration
         self.curr_t = t
@@ -92,10 +93,10 @@ class Sim:
 
         self.next_index = 0;
         # technically should be maximum number of cars, not classes
-        self.next_nodes= [-1] * (self.classes);
-        self.next_states = [-1] * (self.classes);
-        self.next_ids = [-1] * (self.classes);
-        self.rewards = [0] * (self.classes);
+        self.next_nodes= [-1] * (self.max_cars);
+        self.next_states = [-1] * (self.max_cars);
+        self.next_ids = [-1] * (self.max_cars);
+        self.rewards = [0] * (self.max_cars);
         self.r_index = 0;
         
         self.curr_nodes = self.post_start_cars[self.start_t];
@@ -124,10 +125,10 @@ class Sim:
         
         self.next_index = 0;
         # technically should be maximum number of cars, not classes
-        self.next_nodes= [-1] * (self.classes);
-        self.next_states = [-1] * (self.classes);
-        self.next_ids = [-1] * (self.classes);
-        self.rewards = [0] * (self.classes);
+        self.next_nodes= [-1] * (self.max_cars);
+        self.next_states = [-1] * (self.max_cars);
+        self.next_ids = [-1] * (self.max_cars);
+        self.rewards = [0] * (self.max_cars);
         self.r_index = 0;
         
         if (do_timing):
