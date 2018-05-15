@@ -430,18 +430,17 @@ class A2C:
                         cum_r += r[i+j] * (self.gamma**cum_td[j]);
                     R[i] = cum_r
                 
-#                _, c = self.critic_sess.run([self.critic_train_op, 
-#                    self.critic_loss_op], 
-#                    feed_dict={self.critic_states: trajs[car_id], 
-#                        self.critic_values: R})
+                _, c = self.critic_sess.run([self.critic_train_op, 
+                    self.critic_loss_op], 
+                    feed_dict={self.critic_states: trajs[car_id], 
+                        self.critic_values: R})
                 r_fst += np.sum(r);
 
             temp_c = [0] * len(rewards);
             temp_r = [0] * len(rewards);
             k = 0;
             for car_id in range(num_cars):
-#                idx = ids_idx[car_id];
-                r = rewards[car_id]#[:idx]
+                r = rewards[car_id]
                 V_omega = self.critic_sess.run(self.critic_out_layer,
                         feed_dict={self.critic_states: trajs[car_id]}).flatten()
 
@@ -467,10 +466,10 @@ class A2C:
                 for j in range(len(a_s)):
                     one_hot_values[j, a_s[j]] = values[j];
 
-#                _, c = self.actor_sess.run([self.actor_train_op,
-#                    self.actor_loss_op],
-#                    feed_dict={self.actor_states: trajs[car_id], 
-#                    self.actor_values: one_hot_values});
+                _, c = self.actor_sess.run([self.actor_train_op,
+                    self.actor_loss_op],
+                    feed_dict={self.actor_states: trajs[car_id], 
+                    self.actor_values: one_hot_values});
                 c=1;
                 temp_c[k] = c;
                 temp_r[k] = np.sum(r);
