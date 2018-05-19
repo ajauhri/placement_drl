@@ -113,17 +113,9 @@ class GeoUtilities:
         return node, lat_cell - 1, lng_cell - 1
 
         
-    def get_centroid(self, n):
-        c2 = n % len(self.lng_grids) + 1
-        c1 = int((n - c2 + 1) / len(self.lng_grids)) + 1
-        print(c1, c2)
-        print('t', len(self.lng_grids), len(self.lat_grids))
-        return [(self.lat_grids[c1 - 1] + self.lat_grids[c1]) / 2, 
-            (self.lng_grids[c2 - 1] + self.lng_grids[c2]) / 2]
-
     def get_centroid_v2(self, n, n_lng_grids):
-        c2 = np.array(n % (n_lng_grids - 1)).astype(int).tolist();
-        c1 = np.array(n / (n_lng_grids - 1)).astype(int).tolist();
+        c2 = np.array(n % n_lng_grids).astype(int).tolist();
+        c1 = np.array(n / n_lng_grids).astype(int).tolist();
         return [(self.lat_grids[c1+1] + self.lat_grids[c1]) / 2, 
             (self.lng_grids[c2+1] + self.lng_grids[c2]) / 2]
 

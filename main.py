@@ -18,6 +18,7 @@ import logging
 import numpy as np
 from collections import Counter 
 import copy
+import tensorflow as tf
 
 try:
     import cPickle
@@ -72,9 +73,9 @@ def main():
     # segregate train data based on time
     train_time_utils = helpers.TimeUtilities(time_bin_width_secs)
     train_time_utils.set_bounds(X)
-    train_request_buckets = train_time_utils.get_buckets(X, 0)
-    train_pickup_buckets  = train_time_utils.get_buckets(X, 1)
-    train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
+    #train_request_buckets = train_time_utils.get_buckets(X, 0)
+    #train_pickup_buckets  = train_time_utils.get_buckets(X, 1)
+    #train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
     logging.info("Loaded training %d data points", len(X))
     
     # segregate data based on time
@@ -94,6 +95,7 @@ def main():
             time_bins_per_day*7, time_bins_per_day)
     test_window = time_bins_per_hour
     
+    """
     post_start_cars = {};
     pre_load = 5;
     for w in all_windows:
@@ -140,6 +142,7 @@ def main():
     with open(r"post_start_cars.pickle", "wb") as out_file:
         cPickle.dump(post_start_cars, out_file)
     sys.exit(0)
+    """
 
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
@@ -147,9 +150,12 @@ def main():
     with open(r"post_start_cars.pickle","rb") as input_file:
         sim.post_start_cars = cPickle.load(input_file);
 
-    hidden_units = 2048;
-    worker = Worker(sim, 10, train_windows, test_windows, 
-            sim.num_cells, sim.n_actions)
+    with tf.Session() as sess:
+        worker = Worker('worker', sim, 10, train_windows, test_window, 
+                sim.num_cells, sim.n_actions)
+        
+        sess.run(tf.global_variables_initializer())
+        worker.train(sess)
     """
     model = A2C(sim, 10, 
                 train_windows, test_window,
