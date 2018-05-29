@@ -3,20 +3,6 @@ from __future__ import division
 import numpy as np
 import logging
 
-class rr:
-    def __init__(self, id, r_t, p_t, d_t, dn, dlat, dlng, pn, plat, plng):
-        self.id = id
-        self.r_t = r_t
-        self.p_t = p_t
-        self.d_t = d_t
-        self.dn = dn
-        self.dlat = dlat
-        self.dlng = dlng
-        self.pn = pn
-        self.plat = plat
-        self.plng = plat
-        self.picked = False
-
 class TimeUtilities:
     def __init__(self, time_bin_width_secs):
         self.time_bin_width_secs = time_bin_width_secs

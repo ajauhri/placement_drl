@@ -15,8 +15,6 @@ class Worker:
         self.action_dim = action_dim
         self.sim = sim
         self.n_time_bins = n_time_bins
-        self.actor_alpha = 0.0005
-        self.critic_alpha = 0.0005
         self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 15;
