@@ -47,9 +47,9 @@ class Worker:
     def train(self, sess):
         with sess.as_default(), sess.graph.as_default():
             max_epochs = 60
-            rewards_train = [0] * max_epochs;
-            rewards_test = [0] * max_epochs;
-            test_num_rides = [0] * max_epochs;
+            rewards_train = [0] * max_epochs
+            rewards_test = [0] * max_epochs
+            test_num_rides = [0] * max_epochs
             costs = [0] * max_epochs
 
             for epoch in range(max_epochs):
@@ -64,9 +64,6 @@ class Worker:
                 rewards = [[0]*num_ts for i in range(self.sim.max_cars)]
                 actions = [[0]*num_ts for i in range(self.sim.max_cars)]
                 times = [[0]*num_ts for i in range(self.sim.max_cars)]
-                
-                #feed_dict = {self.actor_net.states: [self.sim.base_img]} 
-                #a = sess.run(self.actor_net.predictions, feed_dict)
                 
                 #beginning of an episode run 
                 for t in range(self.sim.start_t, self.sim.end_t):
@@ -85,11 +82,8 @@ class Worker:
                             {self.actor_net.states: self.sim.pmr_imgs})
                         pmr_a_t = self._get_actions(pmr_p_t)
                        
-                    #TODO: Horrible piece of code !!! (for Abhinav)
-                    ids_t = self.sim.curr_ids[:self.sim.curr_index]
-
                     # step in the enviornment
-                    r_t = self.sim.step(a_t, pmr_a_t)
+                    r_t, ids_t = self.sim.step(a_t, pmr_a_t)
 
                     # len of r_t should equal to current states and 
                     # states obtained from pmr

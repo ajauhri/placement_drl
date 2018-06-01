@@ -234,7 +234,8 @@ class Sim:
                 self.next_ids[self.next_index] = self.car_id_counter
                 self.next_index += 1
                 self.car_id_counter += 1        
-
+        
+        old_ids = self.curr_ids
         self.curr_index = self.next_index
         self.curr_states = self.next_states[:self.next_index]
         self.curr_ids = self.next_ids[:self.next_index]
@@ -245,7 +246,7 @@ class Sim:
             end = time.time()
             print("step - 3 "+str(end-strt))
 
-        return self.rewards[:self.r_index];
+        return self.rewards[:self.r_index], old_ids
 
     def _in_rrs(self, dropoff_node, a, car_id, next_th):
         matched = False
