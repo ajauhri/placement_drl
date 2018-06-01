@@ -75,19 +75,12 @@ def main():
     # segregate train data based on time
     train_time_utils = helpers.TimeUtilities(time_bin_width_secs)
     train_time_utils.set_bounds(X)
-
-    train_request_buckets = train_time_utils.get_buckets(X, 0)
-    train_pickup_buckets  = train_time_utils.get_buckets(X, 1)
-    train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
     logging.info("Loaded training %d data points", len(X))
     
     # segregate data based on time
     city = config['city'].iloc[0]
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, time_bins_per_hour)
-    
-    #max_t = 40
-    #for k in sorted(train_dropoff_buckets.keys())[:max_t]:
     
     """
     starting time-step for all windows -- including training and testing time
@@ -105,53 +98,11 @@ def main():
     test_window = time_bins_per_hour
     
     if args.create_pickle:
-        post_start_cars = {}
-        pre_load = 5
-        for w in all_windows_start:
-            req_count = [0] * sim.num_cells
-            req_arr = [[] for x in range(sim.num_cells)]
-            
-            for r_t in range(w-pre_load, w + sim.episode_duration):
-                if r_t in train_request_buckets:
-                    for i in train_request_buckets[r_t]:
-                        dropoff_node, d_lat_idx, d_lon_idx = \
-                                geo_utils.get_node(X[i, 5:7])
-                        pickup_node, p_lat_idx, p_lon_idx = \
-                                geo_utils.get_node(X[i, 2:4])
-
-                        if (pickup_node >= 0):
-                            d_t = train_time_utils.get_bucket(X[i, 4])
-                            p_t = train_time_utils.get_bucket(X[i, 1])
-                            travel_t = d_t - p_t
-                            
-                            # load data picked up after the beginning of the simulation
-                            if (p_t >= w):
-                                req_arr[pickup_node].append([dropoff_node,
-                                    travel_t, max(r_t, w)])
-                                req_count[pickup_node] += 1
-                logging.info("Loaded Requests for time bin %d, hour of day %d" \
-                        % (r_t, train_time_utils.get_hour_of_day(r_t)))
-                sim.req_sizes[r_t] = copy.deepcopy(req_count)
-
-            for d_t in range(w, w + sim.episode_duration):
-                if (d_t not in post_start_cars):
-                    post_start_cars[d_t] = []
-                if d_t in train_dropoff_buckets:
-                    for i in train_dropoff_buckets[d_t]:
-                        dropoff_node, d_lat_idx, d_lon_idx = \
-                            geo_utils.get_node(X[i, 5:7])
-                        if (dropoff_node >= 0):
-                            r_t = train_time_utils.get_bucket(X[i, 0]);
-                            if (r_t < (w - pre_load) or p_t < w):
-                                post_start_cars[d_t].append(dropoff_node);
-                logging.info("Loaded Dropoffs for time bin %d, hour of day %d" \
-                        % (d_t, train_time_utils.get_hour_of_day(d_t)))
-            sim.rrs[w] = req_arr
-        
-        with open(r"rrs.pickle", "wb") as out_file:
-            cPickle.dump(sim.rrs, out_file)
-            cPickle.dump(sim.req_sizes, out_file)
-            cPickle.dump(post_start_cars, out_file)
+        helpers.load_create_pickle(sim,
+                train_time_utils,
+                geo_utils,
+                X,
+                all_windows_start)
 
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
