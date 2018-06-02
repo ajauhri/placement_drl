@@ -40,12 +40,9 @@ class Sim:
         self.base_img[:, :, 1] = np.flipud(np.reshape(num_reqs, 
             [self.n_lat_grids, self.n_lng_grids]))
  
-    def get_states(self):
-        return np.eye(self.num_cells)[self.curr_states[:self.curr_index]].tolist()
-
     def create_state_imgs(self):
         imgs = []
-        for n in self.curr_states[:self.curr_index]:
+        for n in self.curr_nodes[:self.curr_index]:
             y = int(n % self.n_lng_grids)
             x = int(n / self.n_lng_grids)
             state = np.copy(self.base_img)
@@ -129,14 +126,7 @@ class Sim:
         self.curr_req_index = [0] * (self.num_cells)
         self.next_index = 0
         
-        self.next_nodes= [-1] * (self.max_cars)
-        self.next_states = [-1] * (self.max_cars)
-        self.next_ids = [-1] * (self.max_cars)
-        self.rewards = [0] * (self.max_cars)
-        self.r_index = 0
-        
         self.curr_nodes = self.post_start_cars[self.start_t]
-        self.curr_states = self.post_start_cars[self.start_t]
         self.curr_index = len(self.curr_nodes)
         self.curr_ids = range(self.curr_index)
         self.car_id_counter = self.curr_index
@@ -146,14 +136,6 @@ class Sim:
                 dtype=np.uint8)
                
     def step(self, a_t, pmr_a_t):
-        """
-        s: state depicting the centroid of the dropoff grid, hour of day
-        a: left (0), down (1), right (2), up (3), NOP, (4)
-        """
-        do_timing = False;
-        if (do_timing):
-            strt = time.time()
-        
         if self.curr_t > self.end_t:
             return False
        
@@ -163,19 +145,12 @@ class Sim:
         if self.curr_t+1 in self.req_sizes:
             self.curr_req_size = self.req_sizes[self.curr_t+1]
         
-        self.next_index = 0;
+        self.next_index = 0
+        self.next_nodes= [-1] * (self.max_cars)
+        self.next_ids = [-1] * (self.max_cars)
+        self.rewards = [0] * (self.max_cars)
+        self.r_index = 0
         
-        self.next_nodes= [-1] * (self.max_cars);
-        self.next_states = [-1] * (self.max_cars);
-        self.next_ids = [-1] * (self.max_cars);
-        self.rewards = [0] * (self.max_cars);
-        self.r_index = 0;
-        
-        if (do_timing):
-            end = time.time()
-            print("step - setup "+str(end-strt))
-            strt = time.time()
-
         #1 check curr dropoffs which can be matched
         for i in range(self.curr_index):
             matched, r, next_node = self._in_rrs(self.curr_nodes[i], 
@@ -185,20 +160,10 @@ class Sim:
             self.rewards[self.r_index] = r;
             self.r_index += 1;
 
-            if (matched and r == 0):
-                print("matched, ", car_id);
-            
             if r == 0:
-                car_id = self.curr_ids[i];
                 self.next_nodes[self.next_index] = next_node
-                self.next_states[self.next_index] = next_node
                 self.next_ids[self.next_index] = self.curr_ids[i]
                 self.next_index += 1;
-
-        if (do_timing):
-            end = time.time()
-            print("step - 1 "+str(end-strt))
-            strt = time.time();
 
         #2 check dropoffs from previous matched requets if can be matched further
         for i in range(self.pmr_index[self.curr_t - self.start_t]):
@@ -210,42 +175,26 @@ class Sim:
             self.rewards[self.r_index] = r
             self.r_index += 1
 
-            if (matched and r == 0):
-                print("matched, ", car_id)
-                        
             if r == 0:
-                car_id = self.pmr_ids[self.curr_t - self.start_t][i]
                 self.next_nodes[self.next_index] = next_node
-                self.next_states[self.next_index] = next_node
                 self.next_ids[self.next_index] = \
                         self.pmr_ids[self.curr_t - self.start_t][i]
                 self.next_index += 1
-
-        if (do_timing):
-            end = time.time()
-            print("step - 2 " + str(end-strt))
-            strt = time.time();
 
         #3 add dropoff vehicles from before beginning of episode
         if (self.curr_t + 1 in self.post_start_cars):
             for dropoff_node in self.post_start_cars[self.curr_t+1]:
                 self.next_nodes[self.next_index] = dropoff_node
-                self.next_states[self.next_index] = dropoff_node
                 self.next_ids[self.next_index] = self.car_id_counter
                 self.next_index += 1
                 self.car_id_counter += 1        
         
         old_ids = self.curr_ids
         self.curr_index = self.next_index
-        self.curr_states = self.next_states[:self.next_index]
-        self.curr_ids = self.next_ids[:self.next_index]
         self.curr_nodes = self.next_nodes[:self.next_index]
+        self.curr_ids = self.next_ids[:self.next_index]
         self.curr_t += 1
         
-        if (do_timing):
-            end = time.time()
-            print("step - 3 "+str(end-strt))
-
         return self.rewards[:self.r_index], old_ids
 
     def _in_rrs(self, dropoff_node, a, car_id, next_th):
@@ -267,11 +216,11 @@ class Sim:
                 time_index = new_dropoff_t - self.start_t;
                 # maintain all previously matched rides to be 
                 # considered for future cars
-                self.pmr_dropoffs[time_index][self.pmr_index[time_index]] = dropoff_node;
-                self.pmr_states[time_index][self.pmr_index[time_index]] = dropoff_node; 
-                self.pmr_ids[time_index][self.pmr_index[time_index]] = self.car_id_counter;#car_id;
-                self.pmr_index[time_index] += 1;
-                self.car_id_counter += 1;
+                self.pmr_dropoffs[time_index][self.pmr_index[time_index]] = dropoff_node
+                self.pmr_states[time_index][self.pmr_index[time_index]] = dropoff_node
+                self.pmr_ids[time_index][self.pmr_index[time_index]] = self.car_id_counter
+                self.pmr_index[time_index] += 1
+                self.car_id_counter += 1
 
             r = 1;#self.gamma ** ((self.curr_t + 1) - r_t)
             return matched, r, placmt_node

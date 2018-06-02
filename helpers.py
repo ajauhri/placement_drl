@@ -17,6 +17,7 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
         req_count = [0] * sim.num_cells
         req_arr = [[] for x in range(sim.num_cells)]
         
+        # load requests picked up after the beginning of the simulation
         for r_t in range(w-pre_load, w + sim.episode_duration):
             if r_t in train_request_buckets:
                 for i in train_request_buckets[r_t]:
@@ -30,7 +31,6 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
                         p_t = train_time_utils.get_bucket(X[i, 1])
                         travel_t = d_t - p_t
                         
-                        # load data picked up after the beginning of the simulation
                         if (p_t >= w):
                             req_arr[pickup_node].append([dropoff_node,
                                 travel_t, max(r_t, w)])
@@ -38,7 +38,8 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
             logging.info("Loaded Requests for time bin %d, hour of day %d" \
                     % (r_t, train_time_utils.get_hour_of_day(r_t)))
             sim.req_sizes[r_t] = copy.deepcopy(req_count)
-
+        
+        # add drop-offs for requests picked up before simulation starts
         for d_t in range(w, w + sim.episode_duration):
             if (d_t not in post_start_cars):
                 post_start_cars[d_t] = []

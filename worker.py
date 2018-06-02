@@ -236,14 +236,7 @@ class Worker:
                     pmr_a_t[j] = np.random.choice(self.action_dim,
                             1, p=pmr_p_t[j])[0]
 
-            ids_t = self.sim.curr_ids[:self.sim.curr_index]
-            num_ids = len(ids_t);
-            
-            if self.sim.pmr_index[pmr_t] > 0:
-                num_ids += len(self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]]);
-            #print("ts %d, ids %d" % (t, num_ids))
-            
-            r_t = self.sim.step(a_t, pmr_a_t)
+            r_t, ids_t = self.sim.step(a_t, pmr_a_t)
             rewards[pmr_t] = np.sum(r_t)
 
         print("Number of Cars: %f" % (self.sim.car_id_counter));
