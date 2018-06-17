@@ -4,6 +4,7 @@ import copy
 from collections import Counter
 import sys
 import time;
+import random
 
 class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
@@ -151,26 +152,34 @@ class Sim:
         self.rewards = [0] * (self.max_cars)
         self.r_index = 0
         
+        rndm_smple = random.sample(range(self.curr_index),self.curr_index);
+        
         #1 check curr dropoffs which can be matched
         for i in range(self.curr_index):
-            matched, r, next_node = self._in_rrs(self.curr_nodes[i], 
-                                           a_t[i],
-                                           self.curr_ids[i],
+            idx = rndm_smple[i];
+            matched, r, next_node = self._in_rrs(self.curr_nodes[idx], 
+                                           a_t[idx],
+                                           self.curr_ids[idx],
                                            next_th)
             self.rewards[self.r_index] = r;
             self.r_index += 1;
 
             if r == 0:
                 self.next_nodes[self.next_index] = next_node
-                self.next_ids[self.next_index] = self.curr_ids[i]
+                self.next_ids[self.next_index] = self.curr_ids[idx]
                 self.next_index += 1;
 
+        pmr_t = self.curr_t - self.start_t;
+        pmr_idx = self.pmr_index[pmr_t];
+        rndm_smple = random.sample(range(pmr_idx), pmr_idx)
+
         #2 check dropoffs from previous matched requets if can be matched further
-        for i in range(self.pmr_index[self.curr_t - self.start_t]):
+        for i in range(pmr_idx):
+            idx = rndm_smple[i]
             matched, r, next_node = self._in_rrs(
-                    self.pmr_dropoffs[self.curr_t - self.start_t][i], 
-                    pmr_a_t[i],
-                    self.pmr_ids[self.curr_t - self.start_t][i],
+                    self.pmr_dropoffs[pmr_t][idx], 
+                    pmr_a_t[idx],
+                    self.pmr_ids[pmr_t][idx],
                     next_th)
             self.rewards[self.r_index] = r
             self.r_index += 1
@@ -178,7 +187,7 @@ class Sim:
             if r == 0:
                 self.next_nodes[self.next_index] = next_node
                 self.next_ids[self.next_index] = \
-                        self.pmr_ids[self.curr_t - self.start_t][i]
+                        self.pmr_ids[pmr_t][idx]
                 self.next_index += 1
 
         #3 add dropoff vehicles from before beginning of episode
