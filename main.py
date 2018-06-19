@@ -55,6 +55,9 @@ def main():
     X = pandas.read_csv(args.input, sep=',', 
             header=None).values.astype(np.float64)
     
+    """
+    discretize the space into cells
+    """
     geo_utils = helpers.GeoUtilities(config['lat_min'].iloc[0], 
                 config['lat_max'].iloc[0], 
                 config['lng_min'].iloc[0], 
@@ -63,46 +66,33 @@ def main():
     geo_utils.set_grids()
     
     """
-    print(geo_utils.orthodromic_dist([config['lat_min'].iloc[0], 
-        config['lng_min'].iloc[0]],
-        [config['lat_min'].iloc[0],config['lng_max'].iloc[0] ]))
-
-    print(geo_utils.orthodromic_dist([config['lat_min'].iloc[0], 
-        config['lng_min'].iloc[0]],
-        [config['lat_max'].iloc[0],config['lng_min'].iloc[0] ]))
+    segregate data based on time bins
     """
-
-    # segregate train data based on time
     train_time_utils = helpers.TimeUtilities(time_bin_width_secs)
     train_time_utils.set_bounds(X)
-    logging.info("Loaded training %d data points", len(X))
+    logging.info("Loaded %d data points", len(X))
     
-    # segregate data based on time
-    city = config['city'].iloc[0]
     sim = Sim(X, len(geo_utils.lng_grids), train_time_utils, geo_utils, 
             action_dim, time_bins_per_hour)
     
     """
-    starting time-step for all windows -- including training and testing time
-    steps
+    starting time-step for training and testing time bins (tb)
     """
-    all_windows_start = [time_bins_per_hour, 
-            time_bins_per_day*4 + time_bins_per_hour,
+    test_tb_starts = [time_bins_per_hour]
+    train_tb_starts = [time_bins_per_day*4 + time_bins_per_hour,
             time_bins_per_day*5 + time_bins_per_hour,
-            time_bins_per_day*6 + time_bins_per_hour
-            ]
+            time_bins_per_day*6 + time_bins_per_hour]
 
-    # all time-step for all windows used for training
-    train_windows = range(time_bins_per_day*4 + time_bins_per_hour, 
+    train_bins = range(time_bins_per_day*4 + time_bins_per_hour, 
             time_bins_per_day*7, time_bins_per_day)
-    test_window = time_bins_per_hour
     
     if args.create_pickle:
         helpers.load_create_pickle(sim,
                 train_time_utils,
                 geo_utils,
                 X,
-                all_windows_start)
+                train_tb_starts,
+                test_tb_starts)
 
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
@@ -110,11 +100,12 @@ def main():
         sim.post_start_cars = cPickle.load(input_file);
 
     with tf.Session() as sess:
-        worker = Worker('worker', sim, 10, train_windows, test_window, 
+        worker = Worker('worker', sim, 10, train_bins, test_tb_starts, 
                 sim.num_cells, sim.n_actions)
         
         sess.run(tf.global_variables_initializer())
         worker.train(sess)
+    
     """
     model = A2C(sim, 10, 
                 train_windows, test_window,

@@ -24,19 +24,21 @@ class Sim:
         self.num_cells = (len(self.geo_utils.lat_grids) - 1) *\
             (len(self.geo_utils.lng_grids) - 1)
         self.max_cars = self.num_cells*3
+        self.pmr_imgs = []
+        self.curr_imgs = []
     
     def update_base_img(self):
         pmr_t = self.curr_t - self.start_t
         num_cars_per_node = [0] * self.num_cells
         for ni in self.curr_nodes[:self.curr_index]:
             num_cars_per_node[ni] += 1
+        
         for ni in self.pmr_dropoffs[pmr_t][:self.pmr_index[pmr_t]]:
             num_cars_per_node[ni] += 1
         self.base_img[:, :, 0] = np.flipud(np.reshape(num_cars_per_node, 
             [self.n_lat_grids, self.n_lng_grids]))
         
-        num_reqs = np.array(self.curr_req_size) \
-                - np.array(self.curr_req_index)
+        num_reqs = np.array(self.curr_req_size) - np.array(self.curr_req_index)
         self.base_img[:, :, 1] = np.flipud(np.reshape(num_reqs, 
             [self.n_lat_grids, self.n_lng_grids]))
  
@@ -134,8 +136,18 @@ class Sim:
         # create base image 
         self.base_img = np.zeros([self.n_lat_grids, self.n_lng_grids, 3],
                 dtype=np.uint8)
-               
-    def step(self, a_t, pmr_a_t):
+
+        self.update_base_img()
+        self.create_state_imgs()
+    
+    def get_states(self, t): 
+        states = self.curr_imgs
+        pmr_t = t - self.start_t
+        if self.pmr_index[pmr_t] > 0:
+            states = np.append(states, self.pmr_imgs, axis=0)
+        return states 
+
+    def step(self, a_t):
         if self.curr_t > self.end_t:
             return False
        
@@ -169,7 +181,7 @@ class Sim:
         for i in range(self.pmr_index[self.curr_t - self.start_t]):
             matched, r, next_node = self._in_rrs(
                     self.pmr_dropoffs[self.curr_t - self.start_t][i], 
-                    pmr_a_t[i],
+                    a_t[i + self.curr_index],
                     self.pmr_ids[self.curr_t - self.start_t][i],
                     next_th)
             self.rewards[self.r_index] = r
@@ -189,13 +201,20 @@ class Sim:
                 self.next_index += 1
                 self.car_id_counter += 1        
         
-        old_ids = self.curr_ids
+        prev_ids = self.curr_ids
         self.curr_index = self.next_index
         self.curr_nodes = self.next_nodes[:self.next_index]
         self.curr_ids = self.next_ids[:self.next_index]
         self.curr_t += 1
         
-        return self.rewards[:self.r_index], old_ids
+        prev_imgs = self.curr_imgs
+        prev_pmr_imgs = self.pmr_imgs
+
+        if self.curr_t < self.end_t:
+            self.update_base_img()
+            self.create_state_imgs()
+
+        return self.rewards[:self.r_index], prev_ids, prev_imgs, prev_pmr_imgs
 
     def _in_rrs(self, dropoff_node, a, car_id, next_th):
         matched = False

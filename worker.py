@@ -8,8 +8,10 @@ from pg.estimators import ActorEstimator, CriticEstimator
 
 
 class Worker:
-    def __init__(self, name, sim, n_time_bins, train_windows, test_window,
-            state_dim, action_dim):
+    def __init__(self, name, sim, n_time_bins, train_bins, 
+            test_tb_starts,
+            state_dim, 
+            action_dim):
         self.name = name
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -18,8 +20,8 @@ class Worker:
         self.gamma = 0.90
         self.epsilon = 0.5
         self.n = 15;
-        self.train_windows = train_windows
-        self.test_window = test_window
+        self.train_bins = train_bins
+        self.test_tb_starts = test_tb_starts
 
         with tf.variable_scope(name):
             self.actor_net = ActorEstimator(sim.n_lat_grids, sim.n_lng_grids,
@@ -53,43 +55,35 @@ class Worker:
             costs = [0] * max_epochs
 
             for epoch in range(max_epochs):
-                start_t = np.random.choice(self.train_windows, 1)[0] 
+                start_t = np.random.choice(self.train_bins, 1)[0] 
                 self.sim.reset(start_t)
-                num_ts = self.sim.end_t - self.sim.start_t;
                 # classes should be total number of cars in simulation
                 # this should be safe though
                 
                 ids_idx = [0] * self.sim.max_cars
-                trajs = [[0]*num_ts for i in range(self.sim.max_cars)]
-                rewards = [[0]*num_ts for i in range(self.sim.max_cars)]
-                actions = [[0]*num_ts for i in range(self.sim.max_cars)]
-                times = [[0]*num_ts for i in range(self.sim.max_cars)]
+                trajs = [[0]*self.sim.episode_duration 
+                        for i in range(self.sim.max_cars)]
+                rewards = [[0]*self.sim.episode_duration 
+                        for i in range(self.sim.max_cars)]
+                actions = [[0]*self.sim.episode_duration 
+                        for i in range(self.sim.max_cars)]
+                times = [[0]*self.sim.episode_duration 
+                        for i in range(self.sim.max_cars)]
                 
                 #beginning of an episode run 
                 for t in range(self.sim.start_t, self.sim.end_t):
-                    self.sim.update_base_img()
-                    self.sim.create_state_imgs()
-                    
                     pmr_t = t - self.sim.start_t
+                    states = self.sim.get_states(t)
                     p_t = sess.run(self.actor_net.probs,
-                            {self.actor_net.states: self.sim.curr_imgs})
+                            {self.actor_net.states: states})
+
                     a_t = self._get_actions(p_t)
                     
-                    # obtain actions for previously (p) matched (m) rides (r) 
-                    pmr_a_t = []
-                    if self.sim.pmr_index[pmr_t] > 0:
-                        pmr_p_t = sess.run(self.actor_net.probs,
-                            {self.actor_net.states: self.sim.pmr_imgs})
-                        pmr_a_t = self._get_actions(pmr_p_t)
-                       
                     # step in the enviornment
-                    r_t, ids_t = self.sim.step(a_t, pmr_a_t)
+                    r_t, ids_t, prev_imgs, prev_pmr_imgs = self.sim.step(a_t)
 
-                    # len of r_t should equal to current states and 
-                    # states obtained from pmr
-                             
                     self._aggregate(trajs, rewards, actions, times, 
-                            self.sim.curr_imgs, 
+                            prev_imgs,
                             r_t, 
                             a_t, 
                             t, 
@@ -98,12 +92,13 @@ class Worker:
                     
                     if self.sim.pmr_index[pmr_t] > 0:
                         self._aggregate(trajs, rewards, actions, times,
-                                self.sim.pmr_imgs,
-                                r_t[len(self.sim.curr_imgs):],
-                                pmr_a_t,
+                                prev_pmr_imgs,
+                                r_t[len(prev_imgs):],
+                                a_t[len(prev_imgs):],#pmr_a_t,
                                 t,
                                 self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]],
                                 ids_idx)
+                
                 #end of an episode run and results aggregated
                 for car_id in range(self.sim.car_id_counter):
                     idx = ids_idx[car_id]
@@ -128,7 +123,7 @@ class Worker:
                             feed_dict={self.critic_net.states: trajs[car_id]})
                     
                     t_s = times[car_id];
-                    R = [0]*len(r);
+                    R = [0]*len(r)
                     for i in range(len(t_s)):
                         ts = t_s[i:];
                         tp = [ts[0]] + ts[0:-1];
@@ -211,32 +206,20 @@ class Worker:
                 print('test rewards', rewards_test[epoch])
 
     def test(self, sess):
-        start_t = self.test_window
+        start_t = self.test_tb_starts[0]
         self.sim.reset(start_t)
         rewards = [0] * (self.sim.end_t - self.sim.start_t);
 
         for t in range(self.sim.start_t, self.sim.end_t):
-            self.sim.update_base_img()
-            self.sim.create_state_imgs()
-            pmr_t = t - self.sim.start_t;
+            pmr_t = t - self.sim.start_t
+            states = self.sim.get_states(t)
             p_t = sess.run(self.actor_net.probs,
-                            {self.actor_net.states: self.sim.curr_imgs})
-
-            a_t = [-1] * len(p_t);
-            for j in range(len(p_t)):
-                a_t[j] = np.random.choice(self.action_dim, 1, p=p_t[j])[0]
+                    {self.actor_net.states: states})
             
-            pmr_a_t = []
-            if self.sim.pmr_index[pmr_t] > 0:
-                pmr_p_t = sess.run(self.actor_net.probs, 
-                        {self.actor_net.states: self.sim.pmr_imgs})
-
-                pmr_a_t = [-1] * len(pmr_p_t);
-                for j in range(len(pmr_p_t)):
-                    pmr_a_t[j] = np.random.choice(self.action_dim,
-                            1, p=pmr_p_t[j])[0]
-
-            r_t, ids_t = self.sim.step(a_t, pmr_a_t)
+            a_t = []
+            for j in range(len(p_t)):
+                a_t.append(np.random.choice(self.action_dim, 1, p=p_t[j])[0])
+            r_t, ids_t, _, _ = self.sim.step(a_t)
             rewards[pmr_t] = np.sum(r_t)
 
         print("Number of Cars: %f" % (self.sim.car_id_counter));

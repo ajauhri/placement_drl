@@ -4,8 +4,13 @@ import numpy as np
 import logging
 import copy
 
+try:
+    import cPickle
+except ImportError:
+    import _pickle as cPickle
+
 def load_create_pickle(sim, train_time_utils, geo_utils, X,
-        all_windows_start):
+        train_tb_starts, test_tb_starts):
 
     # segregate data based on time-steps
     train_request_buckets = train_time_utils.get_buckets(X, 0)
@@ -13,12 +18,12 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
 
     post_start_cars = {}
     pre_load = 5
-    for w in all_windows_start:
+    for start in train_tb_starts + test_tb_starts:
         req_count = [0] * sim.num_cells
         req_arr = [[] for x in range(sim.num_cells)]
         
         # load requests picked up after the beginning of the simulation
-        for r_t in range(w-pre_load, w + sim.episode_duration):
+        for r_t in range(start-pre_load, start + sim.episode_duration):
             if r_t in train_request_buckets:
                 for i in train_request_buckets[r_t]:
                     dropoff_node, d_lat_idx, d_lon_idx = \
@@ -31,16 +36,16 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
                         p_t = train_time_utils.get_bucket(X[i, 1])
                         travel_t = d_t - p_t
                         
-                        if (p_t >= w):
+                        if (p_t >= start):
                             req_arr[pickup_node].append([dropoff_node,
-                                travel_t, max(r_t, w)])
+                                travel_t, max(r_t, start)])
                             req_count[pickup_node] += 1
             logging.info("Loaded Requests for time bin %d, hour of day %d" \
                     % (r_t, train_time_utils.get_hour_of_day(r_t)))
             sim.req_sizes[r_t] = copy.deepcopy(req_count)
         
         # add drop-offs for requests picked up before simulation starts
-        for d_t in range(w, w + sim.episode_duration):
+        for d_t in range(start, start + sim.episode_duration):
             if (d_t not in post_start_cars):
                 post_start_cars[d_t] = []
             if d_t in train_dropoff_buckets:
@@ -49,11 +54,11 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
                         geo_utils.get_node(X[i, 5:7])
                     if (dropoff_node >= 0):
                         r_t = train_time_utils.get_bucket(X[i, 0]);
-                        if (r_t < (w - pre_load) or p_t < w):
+                        if (r_t < (start - pre_load) or p_t < start):
                             post_start_cars[d_t].append(dropoff_node);
             logging.info("Loaded Dropoffs for time bin %d, hour of day %d" \
                     % (d_t, train_time_utils.get_hour_of_day(d_t)))
-        sim.rrs[w] = req_arr
+        sim.rrs[start] = req_arr
     
     with open(r"rrs.pickle", "wb") as out_file:
         cPickle.dump(sim.rrs, out_file)
