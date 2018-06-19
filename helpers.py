@@ -3,6 +3,10 @@ from __future__ import division
 import numpy as np
 import logging
 import copy
+try:
+    import cPickle
+except ImportError:
+    import _pickle as cPickle
 
 try:
     import cPickle
