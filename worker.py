@@ -6,7 +6,6 @@ import numpy as np
 
 from pg.estimators import ActorEstimator, CriticEstimator
 
-
 class Worker:
     def __init__(self, name, sim, n_time_bins, train_bins, 
             test_tb_starts,
@@ -36,7 +35,7 @@ class Worker:
         return a
 
     def _aggregate(self, trajs, rewards, actions, times, states_t, 
-            r_t, a_t, t_t, ids_t,ids_idx):
+            r_t, a_t, t_t, ids_t, ids_idx):
         for i in range(len(states_t)):
             car_id = ids_t[i]
             idx = ids_idx[car_id]
@@ -71,7 +70,7 @@ class Worker:
                         for i in range(self.sim.max_cars)]
                 
                 #beginning of an episode run 
-                for t in range(self.sim.start_t, self.sim.end_t):
+                for t in range(self.sim.start_t, self.sim.end_t - 1):
                     pmr_t = t - self.sim.start_t
                     states = self.sim.get_states(t)
                     p_t = sess.run(self.actor_net.probs,
@@ -108,9 +107,9 @@ class Worker:
                     times[car_id] = times[car_id][:idx]
                 
                 print("Number of Cars: %d" % (self.sim.car_id_counter))
-                num_reqs_tot = sum(self.sim.curr_req_size)
+                num_reqs_tot = sum(self.sim.n_reqs[self.sim.curr_t])
                 print("Number of Requests: %f" % (num_reqs_tot))
-                num_rides_tot = sum(self.sim.curr_req_index)
+                num_rides_tot = sum(self.sim.agg_good_placmts)
                 print("Number of Rides: %f" % (num_rides_tot))
 
                 temp_c = [0] * len(rewards)
@@ -142,8 +141,8 @@ class Worker:
                         feed_dict={self.critic_net.states: trajs[car_id],
                             self.critic_net.targets: R})
                     
-                    values = (R - V_omega);
-                    a_s = actions[car_id];
+                    values = (R - V_omega)
+                    a_s = actions[car_id]
                     #one_hot_values = np.zeros([len(a_s),self.action_dim]);
                     #for j in range(len(a_s)):
                     #    one_hot_values[j, a_s[j]] = values[j];
@@ -154,48 +153,10 @@ class Worker:
                             self.actor_net.targets: values,
                             self.actor_net.actions: a_s})
                         #self.actor_values: one_hot_values});
-                    temp_c[k] = c;
-                    temp_r[k] = np.sum(r);
-                    k += 1;
+                    temp_c[k] = c
+                    temp_r[k] = np.sum(r)
+                    k += 1
 
-                """
-                for car_id in range(num_cars):
-#                idx = ids_idx[car_id];
-                    r = rewards[car_id]#[:idx]
-                    V_omega = sess.run(self.critic_net.logits,
-                            feed_dict={self.critic_net.states: trajs[car_id]})
-
-                    t_s = times[car_id];
-                    R = [0]*len(r)
-                    for i in range(len(t_s)):
-                        ts = t_s[i:];
-                        tp = [ts[0]] + ts[0:-1];
-                        td = np.asarray(ts) - np.asarray(tp)
-                        cum_td = np.cumsum(td)
-                        cum_r = 0
-                        for j in range(len(ts)):
-                            if cum_td[j] >= self.n:
-                                cum_r += V_omega[i+j] * (self.gamma**cum_td[j]);
-                                break;
-                            cum_r += r[i+j] * (self.gamma**cum_td[j]);
-                        R[i] = cum_r
-                    values = (R - V_omega);
-                    a_s = actions[car_id];
-                    one_hot_values = np.zeros([len(a_s),self.action_dim]);
-                    
-                    for j in range(len(a_s)):
-                        one_hot_values[j, a_s[j]] = values[j];
-
-                    _, c = sess.run([self.actor_net.train_op,
-                        self.actor_net.loss],
-                        feed_dict={self.actor_net.states: trajs[car_id],
-                            self.actor_net.targets: values,
-                            self.actor_net.actions: a_s})
-                        #self.actor_values: one_hot_values});
-                    temp_c[k] = c;
-                    temp_r[k] = np.sum(r);
-                    k += 1;
-                """ 
                 print("sum reward %.2f" % np.sum(temp_r))
                 print("sum cost %.2f" % np.sum(temp_c))
                 #print("sum abs cost %.2f" % np.sum(np.abs(temp_c)))
@@ -222,11 +183,9 @@ class Worker:
             r_t, ids_t, _, _ = self.sim.step(a_t)
             rewards[pmr_t] = np.sum(r_t)
 
-        print("Number of Cars: %f" % (self.sim.car_id_counter));
-        num_reqs_tot = sum(self.sim.curr_req_size)
-        print("Number of Requests: %f" % (num_reqs_tot));
-        num_rides_tot = sum(self.sim.curr_req_index)
-        print("Number of Rides: %f" % (num_rides_tot));
-
+        #print("Number of Cars: %f" % (self.sim.car_id_counter));
+        #num_reqs_tot = sum(self.sim.curr_req_size)
+        #print("Number of Requests: %f" % (num_reqs_tot));
+        #num_rides_tot = sum(self.sim.curr_req_index)
+        #print("Number of Rides: %f" % (num_rides_tot));
         return np.sum(rewards), num_rides_tot
-

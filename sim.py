@@ -11,7 +11,7 @@ class Sim:
                  episode_duration=20, gamma=0.9, past_t=5):
         self.X = X
         self.rrs = {}
-        self.req_sizes = {}
+        self.n_reqs = {}
         self.post_start_cars = {}
         self.episode_duration = episode_duration
         self.gamma = gamma
@@ -31,6 +31,7 @@ class Sim:
     def update_base_img(self):
         pmr_t = self.curr_t - self.start_t
         num_cars_per_node = [0] * self.num_cells
+        
         for ni in self.curr_nodes[:self.curr_index]:
             num_cars_per_node[ni] += 1
         
@@ -39,8 +40,9 @@ class Sim:
         self.base_img[:, :, 0] = np.flipud(np.reshape(num_cars_per_node, 
             [self.n_lat_grids, self.n_lng_grids]))
         
-        num_reqs = np.array(self.curr_req_size) - np.array(self.curr_req_index)
-        self.base_img[:, :, 1] = np.flipud(np.reshape(num_reqs, 
+        n_reqs_rem = np.array(self.n_reqs[self.curr_t]) \
+                - np.array(self.agg_good_placmts)
+        self.base_img[:, :, 1] = np.flipud(np.reshape(n_reqs_rem, 
             [self.n_lat_grids, self.n_lng_grids]))
  
     def create_state_imgs(self):
@@ -125,8 +127,7 @@ class Sim:
         self.curr_t = t
 
         self.requests = self.rrs[self.start_t]
-        self.curr_req_size = self.req_sizes[self.start_t]
-        self.curr_req_index = [0] * (self.num_cells)
+        self.agg_good_placmts = [0] * (self.num_cells)
         self.next_index = 0
         
         self.curr_nodes = self.post_start_cars[self.start_t]
@@ -153,10 +154,6 @@ class Sim:
             return False
        
         th = self.time_utils.get_hour_of_day(self.curr_t)
-        next_th = self.time_utils.get_hour_of_day(self.curr_t + 1)
-        
-        if self.curr_t+1 in self.req_sizes:
-            self.curr_req_size = self.req_sizes[self.curr_t+1]
         
         self.next_index = 0
         self.next_nodes= [-1] * (self.max_cars)
@@ -171,8 +168,7 @@ class Sim:
             idx = rndm_smple[i];
             matched, r, next_node = self._in_rrs(self.curr_nodes[idx], 
                                            a_t[idx],
-                                           self.curr_ids[idx],
-                                           next_th)
+                                           self.curr_ids[idx])
             self.rewards[self.r_index] = r;
             self.r_index += 1;
 
@@ -181,8 +177,8 @@ class Sim:
                 self.next_ids[self.next_index] = self.curr_ids[idx]
                 self.next_index += 1;
 
-        pmr_t = self.curr_t - self.start_t;
-        pmr_idx = self.pmr_index[pmr_t];
+        pmr_t = self.curr_t - self.start_t
+        pmr_idx = self.pmr_index[pmr_t]
         rndm_smple = random.sample(range(pmr_idx), pmr_idx)
 
         #2 check dropoffs from previous matched requets if can be matched further
@@ -191,8 +187,7 @@ class Sim:
             matched, r, next_node = self._in_rrs(
                     self.pmr_dropoffs[pmr_t][idx], 
                     a_t[idx + self.curr_index],
-                    self.pmr_ids[pmr_t][idx],
-                    next_th)
+                    self.pmr_ids[pmr_t][idx])
             self.rewards[self.r_index] = r
             self.r_index += 1
 
@@ -225,13 +220,14 @@ class Sim:
 
         return self.rewards[:self.r_index], prev_ids, prev_imgs, prev_pmr_imgs
 
-    def _in_rrs(self, dropoff_node, a, car_id, next_th):
+    def _in_rrs(self, dropoff_node, a, car_id):
         matched = False
         placmt_node = self.get_next_node(dropoff_node, a)
         
-        if self.curr_req_size[placmt_node] > self.curr_req_index[placmt_node]:
-            req = self.requests[placmt_node][self.curr_req_index[placmt_node]]
-            self.curr_req_index[placmt_node] += 1
+        if self.n_reqs[self.curr_t + 1][placmt_node] > \
+                self.agg_good_placmts[placmt_node]:
+            req = self.requests[placmt_node][self.agg_good_placmts[placmt_node]]
+            self.agg_good_placmts[placmt_node] += 1
             matched = True
             
             dropoff_node = req[0];

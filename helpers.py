@@ -8,13 +8,10 @@ try:
 except ImportError:
     import _pickle as cPickle
 
-try:
-    import cPickle
-except ImportError:
-    import _pickle as cPickle
-
 def load_create_pickle(sim, train_time_utils, geo_utils, X,
         train_tb_starts, test_tb_starts):
+    """
+    """
 
     # segregate data based on time-steps
     train_request_buckets = train_time_utils.get_buckets(X, 0)
@@ -26,8 +23,10 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
         req_count = [0] * sim.num_cells
         req_arr = [[] for x in range(sim.num_cells)]
         
-        # load requests picked up after the beginning of the simulation
-        for r_t in range(start-pre_load, start + sim.episode_duration):
+        """
+        load requests for the duration of the episode, and few from before.
+        """
+        for r_t in range(start - pre_load, start + sim.episode_duration):
             if r_t in train_request_buckets:
                 for i in train_request_buckets[r_t]:
                     dropoff_node, d_lat_idx, d_lon_idx = \
@@ -46,7 +45,7 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
                             req_count[pickup_node] += 1
             logging.info("Loaded Requests for time bin %d, hour of day %d" \
                     % (r_t, train_time_utils.get_hour_of_day(r_t)))
-            sim.req_sizes[r_t] = copy.deepcopy(req_count)
+            sim.n_reqs[r_t] = copy.deepcopy(req_count)
         
         # add drop-offs for requests picked up before simulation starts
         for d_t in range(start, start + sim.episode_duration):
@@ -66,7 +65,7 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
     
     with open(r"rrs.pickle", "wb") as out_file:
         cPickle.dump(sim.rrs, out_file)
-        cPickle.dump(sim.req_sizes, out_file)
+        cPickle.dump(sim.n_reqs, out_file)
         cPickle.dump(post_start_cars, out_file)
 
 

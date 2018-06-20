@@ -96,7 +96,7 @@ def main():
 
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
-        sim.req_sizes = cPickle.load(input_file)
+        sim.n_reqs = cPickle.load(input_file)
         sim.post_start_cars = cPickle.load(input_file);
 
     with tf.Session() as sess:
