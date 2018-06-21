@@ -79,7 +79,8 @@ class Worker:
                     a_t = self._get_actions(p_t)
                     
                     # step in the enviornment
-                    r_t, ids_t, prev_imgs, prev_pmr_imgs = self.sim.step(a_t)
+                    r_t, ids_t, prev_imgs, prev_pmr_imgs,bundle = self.sim.step(a_t)
+                    print(bundle)
 
                     self._aggregate(trajs, rewards, actions, times, 
                             prev_imgs,

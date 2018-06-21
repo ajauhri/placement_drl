@@ -160,22 +160,35 @@ class Sim:
         self.next_ids = [-1] * (self.max_cars)
         self.rewards = [0] * (self.max_cars)
         self.r_index = 0
+
+        num_pickups = 0
+        num_requests = 0
+        num_cars = 0
+        avg_reward = 0
+        avg_wait_pickups = 0
+        avg_wait_requests = 0
         
         rndm_smple = random.sample(range(self.curr_index), self.curr_index)
         
         #1 check curr dropoffs which can be matched
         for i in range(self.curr_index):
             idx = rndm_smple[i];
-            matched, r, next_node = self._in_rrs(self.curr_nodes[idx], 
+            matched, r, next_node, w = self._in_rrs(self.curr_nodes[idx], 
                                            a_t[idx],
                                            self.curr_ids[idx])
             self.rewards[self.r_index] = r;
             self.r_index += 1;
 
+            num_cars += 1
+
             if r == 0:
                 self.next_nodes[self.next_index] = next_node
                 self.next_ids[self.next_index] = self.curr_ids[idx]
                 self.next_index += 1;
+            else: 
+                num_pickups += 1
+                avg_reward += r
+                avg_wait_pickups += w
 
         pmr_t = self.curr_t - self.start_t
         pmr_idx = self.pmr_index[pmr_t]
@@ -184,18 +197,24 @@ class Sim:
         #2 check dropoffs from previous matched requets if can be matched further
         for i in range(pmr_idx):
             idx = rndm_smple[i]
-            matched, r, next_node = self._in_rrs(
+            matched, r, next_node, w = self._in_rrs(
                     self.pmr_dropoffs[pmr_t][idx], 
                     a_t[idx + self.curr_index],
                     self.pmr_ids[pmr_t][idx])
             self.rewards[self.r_index] = r
             self.r_index += 1
+            
+            num_cars += 1
 
             if r == 0:
                 self.next_nodes[self.next_index] = next_node
                 self.next_ids[self.next_index] = \
                         self.pmr_ids[pmr_t][idx]
                 self.next_index += 1
+            else: 
+                num_pickups += 1
+                avg_reward += r
+                avg_wait_pickups += w
 
         #3 add dropoff vehicles from before beginning of episode
         if (self.curr_t + 1 in self.post_start_cars):
@@ -218,7 +237,19 @@ class Sim:
             self.update_base_img()
             self.create_state_imgs()
 
-        return self.rewards[:self.r_index], prev_ids, prev_imgs, prev_pmr_imgs
+        for i in range(self.num_cells):
+            for j in range(self.agg_good_placmts[i],self.n_reqs[self.curr_t+1][i]):
+                req = self.requests[i][j]
+                avg_wait_requests += req[2]
+                num_requests += 1
+
+        avg_reward /= num_pickups
+        avg_wait_pickups /= num_pickups
+        avg_wait_requests /= num_requests
+
+        bundle = (num_pickups, num_cars, num_requests, avg_reward, avg_wait_pickups, avg_wait_requests)
+
+        return self.rewards[:self.r_index], prev_ids, prev_imgs, prev_pmr_imgs, bundle
 
     def _in_rrs(self, dropoff_node, a, car_id):
         matched = False
@@ -247,6 +278,7 @@ class Sim:
                 self.car_id_counter += 1
 
             r = 1;#self.gamma ** ((self.curr_t + 1) - r_t)
-            return matched, r, placmt_node
+            w = self.curr_t+1 - r_t # wait time
+            return matched, r, placmt_node, w
 
-        return matched, 0, placmt_node
+        return matched, 0, placmt_node, 0
