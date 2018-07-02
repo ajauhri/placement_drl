@@ -93,11 +93,11 @@ def main():
                 X,
                 train_tb_starts,
                 test_tb_starts)
-
+    
     with open(r"rrs.pickle", "rb") as input_file:
         sim.rrs = cPickle.load(input_file)
         sim.n_reqs = cPickle.load(input_file)
-        sim.post_start_cars = cPickle.load(input_file);
+        sim.pre_sim_pickups = cPickle.load(input_file);
 
     with tf.Session() as sess:
         worker = Worker('worker', sim, 10, train_bins, test_tb_starts, 

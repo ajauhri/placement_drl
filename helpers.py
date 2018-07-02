@@ -17,7 +17,7 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
     train_request_buckets = train_time_utils.get_buckets(X, 0)
     train_dropoff_buckets = train_time_utils.get_buckets(X, 4)
 
-    post_start_cars = {}
+    pre_sim_pickups = {}
     pre_load = 5
     for start in train_tb_starts + test_tb_starts:
         req_count = [0] * sim.num_cells
@@ -25,48 +25,78 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
         
         """
         load requests for the duration of the episode, and few from before.
+        requests are only added if pickup is after start irrespective or request
+        time.
         """
         for r_t in range(start - pre_load, start + sim.episode_duration):
             if r_t in train_request_buckets:
+                c = []
                 for i in train_request_buckets[r_t]:
-                    dropoff_node, d_lat_idx, d_lon_idx = \
-                            geo_utils.get_node(X[i, 5:7])
-                    pickup_node, p_lat_idx, p_lon_idx = \
-                            geo_utils.get_node(X[i, 2:4])
+                    dropoff_node, _, _ = geo_utils.get_node(X[i, 5:7])
+                    pickup_node, _, _ = geo_utils.get_node(X[i, 2:4])
+                    c.append([X[i, 1], X[i, 4], pickup_node, dropoff_node, 
+                        max(r_t, start), -1])
+        
+                c = np.array(c)
+                
+                # check pickup-node should be non-negative
+                c = c[c[:, 2] >= 0, :]
+                if len(c) > 0:
+                    # find discrete time steps for pickups
+                    p_ts = train_time_utils.get_xx_buckets(c, 0, s_t=r_t)
 
-                    if (pickup_node >= 0):
-                        d_t = train_time_utils.get_bucket(X[i, 4])
-                        p_t = train_time_utils.get_bucket(X[i, 1])
-                        travel_t = d_t - p_t
-                        
-                        if (p_t >= start):
-                            req_arr[pickup_node].append([dropoff_node,
-                                travel_t, max(r_t, start)])
+                    # filter out pickup times should >= simulation start time
+                    valid_reqs = np.where(p_ts >= start)[0]
+                    if len(valid_reqs) > 0:
+                        c = c[valid_reqs, :]
+                        p_ts = p_ts[valid_reqs]
+
+                        # find discrete time steps for drop-offs
+                        d_ts = train_time_utils.get_xx_buckets(c, 1, s_t=r_t)
+
+                        # compute travel_time
+                        c[:, -1] = d_ts - p_ts
+
+                        for r in c:
+                            pickup_node = int(r[2])
+                            # list of dropoff_node, req_time_bin, drive_time_bin
+                            req_arr[pickup_node].append([r[3], r[4], r[5]])
                             req_count[pickup_node] += 1
-            logging.info("Loaded Requests for time bin %d, hour of day %d" \
-                    % (r_t, train_time_utils.get_hour_of_day(r_t)))
-            sim.n_reqs[r_t] = copy.deepcopy(req_count)
+                        sim.n_reqs[r_t] = req_count[:]
+    
+        logging.info("Loaded requests for time bins %d to  %d" % 
+                (start - pre_load, start + sim.episode_duration))
         
         # add drop-offs for requests picked up before simulation starts
+        c = []
         for d_t in range(start, start + sim.episode_duration):
-            if (d_t not in post_start_cars):
-                post_start_cars[d_t] = []
             if d_t in train_dropoff_buckets:
+                if d_t not in pre_sim_pickups:
+                    pre_sim_pickups[d_t] = []
                 for i in train_dropoff_buckets[d_t]:
-                    dropoff_node, d_lat_idx, d_lon_idx = \
-                        geo_utils.get_node(X[i, 5:7])
-                    if (dropoff_node >= 0):
-                        r_t = train_time_utils.get_bucket(X[i, 0]);
-                        if (r_t < (start - pre_load) or p_t < start):
-                            post_start_cars[d_t].append(dropoff_node);
-            logging.info("Loaded Dropoffs for time bin %d, hour of day %d" \
-                    % (d_t, train_time_utils.get_hour_of_day(d_t)))
+                    dropoff_node, _, _ = geo_utils.get_node(X[i, 5:7])
+                    c.append([dropoff_node, d_t, X[i, 1]])
+        
+        c = np.array(c)
+
+        # check dropoff-node should be non-negative
+        c = c[c[:, 0] >= 0, :]
+        p_ts = train_time_utils.get_xx_buckets(c, 2, 
+                start + sim.episode_duration)
+        for i in range(len(c)):
+            # pickup time should be before start of simulation to avoid any
+            # double counting in the requests generated in the simulator
+            if p_ts[i] < start:
+                pre_sim_pickups[c[i, 1]].append(c[i, 0])
+
+        logging.info("Loaded dropoffs for all time bins from %d to %d" %
+                (start, start + sim.episode_duration))
         sim.rrs[start] = req_arr
     
     with open(r"rrs.pickle", "wb") as out_file:
         cPickle.dump(sim.rrs, out_file)
         cPickle.dump(sim.n_reqs, out_file)
-        cPickle.dump(post_start_cars, out_file)
+        cPickle.dump(pre_sim_pickups, out_file)
 
 
 class TimeUtilities:
@@ -82,7 +112,7 @@ class TimeUtilities:
         """
         # to ensure the last upper bound is greater than the actual max. time
         bias = self.time_bin_width_secs
-        self.time_bin_bounds = np.array(range(int(np.min(D[:,0])), 
+        self.time_bin_bounds = np.array(range(int(np.min(D[:, 0])), 
             int(np.max(D[:, 0])) + bias, 
             self.time_bin_width_secs))
     
@@ -96,6 +126,18 @@ class TimeUtilities:
                 time < self.time_bin_bounds[t+1]))[0]
             if len(idx):
                 return t
+ 
+    def get_xx_buckets(self, D, ind, s_t=0, e_t=-1):
+        t = np.zeros((len(D)))
+        if e_t == -1 or e_t == len(self.time_bin_bounds):
+            e_t = len(self.time_bin_bounds) - 1
+        for i in range(s_t, e_t):
+            idx = np.where(np.logical_and(
+                D[:, ind] >= self.time_bin_bounds[i],
+                D[:, ind] < self.time_bin_bounds[i+1]))[0]
+            if len(idx):
+                t[idx] = i
+        return t
 
     def get_buckets(self, D, ind):
         time_bins = {}
@@ -103,8 +145,6 @@ class TimeUtilities:
             time_bins[i] = np.where(np.logical_and(
                 D[:, ind] >= self.time_bin_bounds[i],
                 D[:, ind] < self.time_bin_bounds[i+1]))[0]
-        logging.info('Loaded {0} time buckets'.format(
-            len(time_bins)))
         return time_bins
 
 class GeoUtilities:

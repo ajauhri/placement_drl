@@ -10,9 +10,25 @@ class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
                  episode_duration=20, gamma=0.9, past_t=5):
         self.X = X
+        """
+        rrs: indexed by only the start time of each episode. rrs[t] has all 
+        requests indexed by the origin node. For example: rrs[t][n] returns 
+        list of requests where each item of the list contains 
+        [dropoff_node, travel_time, start_time].
+        """
         self.rrs = {}
-        self.n_reqs = {}
-        self.post_start_cars = {}
+
+        """
+        n_reqs: aggregate number of requests indexed by time-step. 
+        n_reqs[1] will have aggregated requests for t=0 and t=1 for each cell.
+        """
+        self.n_reqs = {} 
+
+        """
+        pre_sim_pickups: indexed by dropoff time (d_t), returns a list of nodes 
+        where drop-offs occurred at time d_t.
+        """
+        self.pre_sim_pickups = {}
         self.episode_duration = episode_duration
         self.gamma = gamma
         self.past_t = past_t
@@ -130,7 +146,7 @@ class Sim:
         self.agg_good_placmts = [0] * (self.num_cells)
         self.next_index = 0
         
-        self.curr_nodes = self.post_start_cars[self.start_t]
+        self.curr_nodes = self.pre_sim_pickups[self.start_t]
         self.curr_index = len(self.curr_nodes)
         self.curr_ids = range(self.curr_index)
         self.car_id_counter = self.curr_index
@@ -198,8 +214,8 @@ class Sim:
                 self.next_index += 1
 
         #3 add dropoff vehicles from before beginning of episode
-        if (self.curr_t + 1 in self.post_start_cars):
-            for dropoff_node in self.post_start_cars[self.curr_t+1]:
+        if (self.curr_t + 1 in self.pre_sim_pickups):
+            for dropoff_node in self.pre_sim_pickups[self.curr_t+1]:
                 self.next_nodes[self.next_index] = dropoff_node
                 self.next_ids[self.next_index] = self.car_id_counter
                 self.next_index += 1
@@ -230,9 +246,9 @@ class Sim:
             self.agg_good_placmts[placmt_node] += 1
             matched = True
             
-            dropoff_node = req[0];
-            drive_t = req[1];
-            r_t = req[2];
+            dropoff_node = req[0]
+            r_t = req[1]
+            drive_t = req[2]
 #            drive_t = self.geo_utils.get_num_steps(placmt_node, self.n_lng_grids, dropoff_node)
             new_dropoff_t = (self.curr_t + 1) + drive_t
 
