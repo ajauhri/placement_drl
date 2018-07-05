@@ -18,7 +18,7 @@ class Worker:
         self.n_time_bins = n_time_bins
         self.gamma = 0.90
         self.epsilon = 0.5
-        self.n = 15;
+        self.n = 15
         self.train_bins = train_bins
         self.test_tb_starts = test_tb_starts
 
@@ -50,7 +50,6 @@ class Worker:
             max_epochs = 60
             rewards_train = [0] * max_epochs
             rewards_test = [0] * max_epochs
-            test_num_rides = [0] * max_epochs
             costs = [0] * max_epochs
 
             for epoch in range(max_epochs):
@@ -70,8 +69,8 @@ class Worker:
                         for i in range(self.sim.max_cars)]
                 
                 #beginning of an episode run 
-                for t in range(self.sim.start_t, self.sim.end_t - 1):
-                    pmr_t = t - self.sim.start_t
+                for t in range(self.sim.start_t, self.sim.end_t):
+                    pmr_t = self.sim.curr_t - self.sim.start_t
                     states = self.sim.get_states(t)
                     p_t = sess.run(self.actor_net.probs,
                             {self.actor_net.states: states})
@@ -97,8 +96,8 @@ class Worker:
                                 t,
                                 self.sim.pmr_ids[pmr_t][:self.sim.pmr_index[pmr_t]],
                                 ids_idx)
-                
                 #end of an episode run and results aggregated
+
                 for car_id in range(self.sim.car_id_counter):
                     idx = ids_idx[car_id]
                     trajs[car_id] = trajs[car_id][:idx]
@@ -108,9 +107,9 @@ class Worker:
                 
                 print("Number of Cars: %d" % (self.sim.car_id_counter))
                 num_reqs_tot = sum(self.sim.n_reqs[self.sim.curr_t])
-                print("Number of Requests: %f" % (num_reqs_tot))
+                print("Number of Requests: %d" % (num_reqs_tot))
                 num_rides_tot = sum(self.sim.agg_good_placmts)
-                print("Number of Rides: %f" % (num_rides_tot))
+                print("Number of Rides: %d" % (num_rides_tot))
 
                 temp_c = [0] * len(rewards)
                 temp_r = [0] * len(rewards)
@@ -121,7 +120,7 @@ class Worker:
                     V_omega = sess.run(self.critic_net.logits,
                             feed_dict={self.critic_net.states: trajs[car_id]})
                     
-                    t_s = times[car_id];
+                    t_s = times[car_id]
                     R = [0]*len(r)
                     for i in range(len(t_s)):
                         ts = t_s[i:];
@@ -163,7 +162,7 @@ class Worker:
 
                 costs[epoch] = np.mean(temp_c);
                 rewards_train[epoch] = np.sum(temp_r);
-                rewards_test[epoch], test_num_rides[epoch] = self.test(sess)
+                rewards_test[epoch] = self.test(sess)
                 print('test rewards', rewards_test[epoch])
 
     def test(self, sess):
@@ -188,4 +187,4 @@ class Worker:
         #print("Number of Requests: %f" % (num_reqs_tot));
         #num_rides_tot = sum(self.sim.curr_req_index)
         #print("Number of Rides: %f" % (num_rides_tot));
-        return np.sum(rewards), num_rides_tot
+        return np.sum(rewards)

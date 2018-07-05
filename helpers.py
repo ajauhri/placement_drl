@@ -28,7 +28,7 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
         requests are only added if pickup is after start irrespective or request
         time.
         """
-        for r_t in range(start - pre_load, start + sim.episode_duration):
+        for r_t in range(start - pre_load, start + sim.episode_duration + 1):
             if r_t in train_request_buckets:
                 c = []
                 for i in train_request_buckets[r_t]:
@@ -56,7 +56,8 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
 
                         # compute travel_time
                         c[:, -1] = d_ts - p_ts
-
+                        print(np.sum(c[:, -1] < 0))
+                        c = c.astype(int)
                         for r in c:
                             pickup_node = int(r[2])
                             # list of dropoff_node, req_time_bin, drive_time_bin
@@ -83,6 +84,7 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
         c = c[c[:, 0] >= 0, :]
         p_ts = train_time_utils.get_xx_buckets(c, 2, 
                 start + sim.episode_duration)
+        c = c.astype(int)
         for i in range(len(c)):
             # pickup time should be before start of simulation to avoid any
             # double counting in the requests generated in the simulator

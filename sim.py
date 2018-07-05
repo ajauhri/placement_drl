@@ -3,12 +3,12 @@ import numpy as np
 import copy
 from collections import Counter
 import sys
-import time;
+import time
 import random
 
 class Sim:
     def __init__(self, X, n_lng_grids, time_utils, geo_utils, n_actions,
-                 episode_duration=20, gamma=0.9, past_t=5):
+                 episode_duration, gamma=0.9, past_t=5):
         self.X = X
         """
         rrs: indexed by only the start time of each episode. rrs[t] has all 
@@ -48,10 +48,10 @@ class Sim:
         pmr_t = self.curr_t - self.start_t
         num_cars_per_node = [0] * self.num_cells
         
-        for ni in self.curr_nodes[:self.curr_index]:
+        for ni in self.curr_nodes:
             num_cars_per_node[ni] += 1
         
-        for ni in self.pmr_dropoffs[pmr_t][:self.pmr_index[pmr_t]]:
+        for ni in self.pmr_states[pmr_t][:self.pmr_index[pmr_t]]:
             num_cars_per_node[ni] += 1
         self.base_img[:, :, 0] = np.flipud(np.reshape(num_cars_per_node, 
             [self.n_lat_grids, self.n_lng_grids]))
@@ -63,7 +63,7 @@ class Sim:
  
     def create_state_imgs(self):
         imgs = []
-        for n in self.curr_nodes[:self.curr_index]:
+        for n in self.curr_nodes:
             y = int(n % self.n_lng_grids)
             x = int(n / self.n_lng_grids)
             state = np.copy(self.base_img)
@@ -83,11 +83,6 @@ class Sim:
                 imgs.append(state)
             self.pmr_imgs = np.array(imgs) 
 
-    def get_pmr_states(self, t):
-        t_i = t - self.start_t;
-        pmr_state = self.pmr_states[t_i][:self.pmr_index[t_i]];
-        return np.eye(self.num_cells)[pmr_state].tolist();
-    
     def get_next_node(self, curr_node, a):
         lng_idx = int(curr_node % self.n_lng_grids)
         lat_idx = int(curr_node / self.n_lng_grids)
@@ -131,8 +126,6 @@ class Sim:
         self.pmr_index = [0] * self.episode_duration; 
         
         # technically should be maximum number of cars, not classes
-        self.pmr_dropoffs = [[-1] * self.max_cars \
-                for i in range(self.episode_duration)]
         self.pmr_states = [[-1] * self.max_cars \
                 for i in range(self.episode_duration)]
         self.pmr_ids = [[-1] * self.max_cars \
@@ -147,9 +140,8 @@ class Sim:
         self.next_index = 0
         
         self.curr_nodes = self.pre_sim_pickups[self.start_t]
-        self.curr_index = len(self.curr_nodes)
-        self.curr_ids = range(self.curr_index)
-        self.car_id_counter = self.curr_index
+        self.curr_ids = range(len(self.curr_nodes))
+        self.car_id_counter = len(self.curr_nodes)
 
         # create base image 
         self.base_img = np.zeros([self.n_lat_grids, self.n_lng_grids, 3],
@@ -171,60 +163,51 @@ class Sim:
        
         th = self.time_utils.get_hour_of_day(self.curr_t)
         
-        self.next_index = 0
-        self.next_nodes= [-1] * (self.max_cars)
-        self.next_ids = [-1] * (self.max_cars)
-        self.rewards = [0] * (self.max_cars)
-        self.r_index = 0
+        next_nodes = []
+        next_ids = []
+        rewards = []
         
-        rndm_smple = random.sample(range(self.curr_index), self.curr_index)
+        rndm_smple = random.sample(range(len(self.curr_nodes)), 
+                len(self.curr_nodes))
         
         #1 check curr dropoffs which can be matched
-        for i in range(self.curr_index):
-            idx = rndm_smple[i];
+        assert len(self.curr_nodes) == len(self.curr_ids) == len(self.curr_imgs)
+        for idx in rndm_smple:
             matched, r, next_node = self._in_rrs(self.curr_nodes[idx], 
                                            a_t[idx],
                                            self.curr_ids[idx])
-            self.rewards[self.r_index] = r;
-            self.r_index += 1;
+            rewards.append(r)
 
             if r == 0:
-                self.next_nodes[self.next_index] = next_node
-                self.next_ids[self.next_index] = self.curr_ids[idx]
-                self.next_index += 1;
+                next_nodes.append(next_node)
+                next_ids.append(self.curr_ids[idx])
 
         pmr_t = self.curr_t - self.start_t
         pmr_idx = self.pmr_index[pmr_t]
         rndm_smple = random.sample(range(pmr_idx), pmr_idx)
 
-        #2 check dropoffs from previous matched requets if can be matched further
+        #2 check dropoffs from previous matched requests if can be matched further
         for i in range(pmr_idx):
             idx = rndm_smple[i]
-            matched, r, next_node = self._in_rrs(
-                    self.pmr_dropoffs[pmr_t][idx], 
-                    a_t[idx + self.curr_index],
+            matched, r, next_node = self._in_rrs(self.pmr_states[pmr_t][idx], 
+                    a_t[idx + len(self.curr_nodes)],
                     self.pmr_ids[pmr_t][idx])
-            self.rewards[self.r_index] = r
-            self.r_index += 1
+            rewards.append(r)
 
             if r == 0:
-                self.next_nodes[self.next_index] = next_node
-                self.next_ids[self.next_index] = \
-                        self.pmr_ids[pmr_t][idx]
-                self.next_index += 1
+                next_nodes.append(next_node)
+                next_ids.append(self.pmr_ids[pmr_t][idx])
 
         #3 add dropoff vehicles from before beginning of episode
-        if (self.curr_t + 1 in self.pre_sim_pickups):
+        if self.curr_t + 1 in self.pre_sim_pickups:
             for dropoff_node in self.pre_sim_pickups[self.curr_t+1]:
-                self.next_nodes[self.next_index] = dropoff_node
-                self.next_ids[self.next_index] = self.car_id_counter
-                self.next_index += 1
-                self.car_id_counter += 1        
-        
+                next_nodes.append(dropoff_node)
+                next_ids.append(self.car_id_counter)
+                self.car_id_counter += 1
+
         prev_ids = self.curr_ids
-        self.curr_index = self.next_index
-        self.curr_nodes = self.next_nodes[:self.next_index]
-        self.curr_ids = self.next_ids[:self.next_index]
+        self.curr_nodes = next_nodes
+        self.curr_ids = next_ids
         self.curr_t += 1
         
         prev_imgs = self.curr_imgs
@@ -234,7 +217,7 @@ class Sim:
             self.update_base_img()
             self.create_state_imgs()
 
-        return self.rewards[:self.r_index], prev_ids, prev_imgs, prev_pmr_imgs
+        return rewards, prev_ids, prev_imgs, prev_pmr_imgs
 
     def _in_rrs(self, dropoff_node, a, car_id):
         matched = False
@@ -249,20 +232,18 @@ class Sim:
             dropoff_node = req[0]
             r_t = req[1]
             drive_t = req[2]
-#            drive_t = self.geo_utils.get_num_steps(placmt_node, self.n_lng_grids, dropoff_node)
             new_dropoff_t = (self.curr_t + 1) + drive_t
 
             if new_dropoff_t < self.end_t and dropoff_node >= 0:
                 time_index = new_dropoff_t - self.start_t;
                 # maintain all previously matched rides to be 
                 # considered for future cars
-                self.pmr_dropoffs[time_index][self.pmr_index[time_index]] = dropoff_node
                 self.pmr_states[time_index][self.pmr_index[time_index]] = dropoff_node
                 self.pmr_ids[time_index][self.pmr_index[time_index]] = self.car_id_counter
                 self.pmr_index[time_index] += 1
                 self.car_id_counter += 1
-
-            r = 1;#self.gamma ** ((self.curr_t + 1) - r_t)
+               
+            r = 1 #self.gamma ** ((self.curr_t + 1) - r_t)
             return matched, r, placmt_node
 
         return matched, 0, placmt_node
