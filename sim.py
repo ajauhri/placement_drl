@@ -166,6 +166,13 @@ class Sim:
         next_nodes = []
         next_ids = []
         rewards = []
+
+        num_pickups = 0
+        num_requests = 0
+        num_cars = 0
+        avg_reward = 0
+        avg_wait_pickups = 0
+        avg_wait_requests = 0
         
         rndm_smple = random.sample(range(len(self.curr_nodes)), 
                 len(self.curr_nodes))
@@ -173,14 +180,20 @@ class Sim:
         #1 check curr dropoffs which can be matched
         assert len(self.curr_nodes) == len(self.curr_ids) == len(self.curr_imgs)
         for idx in rndm_smple:
-            matched, r, next_node = self._in_rrs(self.curr_nodes[idx], 
+            matched, r, next_node, w = self._in_rrs(self.curr_nodes[idx], 
                                            a_t[idx],
                                            self.curr_ids[idx])
             rewards.append(r)
 
+            num_cars += 1
+
             if r == 0:
                 next_nodes.append(next_node)
                 next_ids.append(self.curr_ids[idx])
+            else: 
+                num_pickups += 1
+                avg_reward += r
+                avg_wait_pickups += w
 
         pmr_t = self.curr_t - self.start_t
         pmr_idx = self.pmr_index[pmr_t]
@@ -189,14 +202,20 @@ class Sim:
         #2 check dropoffs from previous matched requests if can be matched further
         for i in range(pmr_idx):
             idx = rndm_smple[i]
-            matched, r, next_node = self._in_rrs(self.pmr_states[pmr_t][idx], 
+            matched, r, next_node, w = self._in_rrs(self.pmr_states[pmr_t][idx], 
                     a_t[idx + len(self.curr_nodes)],
                     self.pmr_ids[pmr_t][idx])
             rewards.append(r)
 
+            num_cars += 1
+
             if r == 0:
                 next_nodes.append(next_node)
                 next_ids.append(self.pmr_ids[pmr_t][idx])
+            else: 
+                num_pickups += 1
+                avg_reward += r
+                avg_wait_pickups += w
 
         #3 add dropoff vehicles from before beginning of episode
         if self.curr_t + 1 in self.pre_sim_pickups:
@@ -216,8 +235,23 @@ class Sim:
         if self.curr_t < self.end_t:
             self.update_base_img()
             self.create_state_imgs()
+        """
+        TODO: Not sure what stat. is being collected here.
+        for i in range(self.num_cells):
+            for j in range(self.agg_good_placmts[i],
+                    self.n_reqs[self.curr_t+1][i]):
+                req = self.requests[i][j]
+                avg_wait_requests += req[1]
+                num_requests += 1
+        """
+        avg_reward /= num_pickups
+        avg_wait_pickups /= num_pickups
+        #avg_wait_requests /= num_requests
 
-        return rewards, prev_ids, prev_imgs, prev_pmr_imgs
+        bundle = (num_pickups, num_cars, num_requests, avg_reward, 
+                avg_wait_pickups)#, avg_wait_requests)
+
+        return rewards, prev_ids, prev_imgs, prev_pmr_imgs, bundle
 
     def _in_rrs(self, dropoff_node, a, car_id):
         matched = False
@@ -244,6 +278,7 @@ class Sim:
                 self.car_id_counter += 1
                
             r = 1 #self.gamma ** ((self.curr_t + 1) - r_t)
-            return matched, r, placmt_node
-
-        return matched, 0, placmt_node
+            w = self.curr_t+1 - r_t # wait time
+            return matched, r, placmt_node, w
+        
+        return matched, 0, placmt_node, 0

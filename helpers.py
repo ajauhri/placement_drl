@@ -56,7 +56,7 @@ def load_create_pickle(sim, train_time_utils, geo_utils, X,
 
                         # compute travel_time
                         c[:, -1] = d_ts - p_ts
-                        print(np.sum(c[:, -1] < 0))
+                        
                         c = c.astype(int)
                         for r in c:
                             pickup_node = int(r[2])

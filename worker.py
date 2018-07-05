@@ -78,7 +78,8 @@ class Worker:
                     a_t = self._get_actions(p_t)
                     
                     # step in the enviornment
-                    r_t, ids_t, prev_imgs, prev_pmr_imgs = self.sim.step(a_t)
+                    r_t, ids_t, prev_imgs, prev_pmr_imgs, bundle = \
+                            self.sim.step(a_t)
 
                     self._aggregate(trajs, rewards, actions, times, 
                             prev_imgs,
@@ -179,7 +180,7 @@ class Worker:
             a_t = []
             for j in range(len(p_t)):
                 a_t.append(np.random.choice(self.action_dim, 1, p=p_t[j])[0])
-            r_t, ids_t, _, _ = self.sim.step(a_t)
+            r_t, ids_t, _, _, _ = self.sim.step(a_t)
             rewards[pmr_t] = np.sum(r_t)
 
         #print("Number of Cars: %f" % (self.sim.car_id_counter));
